@@ -1,0 +1,2706 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Membaca Anak</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            800: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS for Excel Upload/Download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Printable PDF Styling Fix */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printableReportArea {
+                display: block !important;
+                visibility: visible !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 20px;
+                background: white;
+                color: black;
+            }
+            #printableReportArea * {
+                visibility: visible !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Toast Animation */
+        @keyframes slideInDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .animate-toast {
+            animation: slideInDown 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="h-full text-slate-800 flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none no-print"></div>
+
+    <!-- TOP HEADER / BRANDING BAR -->
+    <header class="bg-gradient-to-r from-brand-800 via-brand-700 to-indigo-900 text-white shadow-lg sticky top-0 z-40 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- School & Teacher Identity -->
+            <div class="flex items-center gap-3">
+                <div id="headerLogoContainer" class="bg-white/10 p-2 rounded-xl backdrop-blur-md border border-white/20 shadow-inner flex items-center justify-center w-11 h-11 shrink-0 overflow-hidden">
+                    <i class="fa-solid font-bold text-yellow-300 text-2xl fa-book-open-reader"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-extrabold tracking-tight flex items-center gap-2">
+                        APLIKASI MEMBACA INTERAKTIF
+                        <span class="bg-yellow-400 text-slate-900 text-xs font-bold px-2 py-0.5 rounded-full uppercase">SD</span>
+                    </h1>
+                    <p class="text-xs sm:text-sm text-brand-100 font-medium flex items-center gap-2">
+                        <i class="fa-solid fa-user-tie text-yellow-300"></i> ARDIANSYAH, S.Pd
+                        <span class="text-white/40">|</span>
+                        <i class="fa-solid fa-school text-yellow-300"></i> <span id="headerSchoolName">SD NEGERI PARANGGI</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Header Quick Actions -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Active Student Badge -->
+                <div id="activeStudentBadge" class="hidden bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs px-3 py-1.5 rounded-lg flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span>Siswa: <strong id="activeStudentBadgeName" class="text-white"> - </strong></span>
+                </div>
+
+                <!-- Fullscreen Active Status Indicator Badge -->
+                <span id="fullscreenBadge" class="hidden bg-yellow-400 text-slate-900 text-[10px] font-black px-2.5 py-1 rounded-full uppercase shadow">
+                    FULLSCREEN
+                </span>
+
+                <!-- Fullscreen Toggle Button -->
+                <button onclick="toggleFullscreen()" title="Mode Layar Penuh" class="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-xl border border-white/20 transition-all duration-200 flex items-center gap-1.5 text-xs font-semibold">
+                    <i id="fullscreenBtnIcon" class="fa-solid fa-expand text-sm"></i>
+                    <span id="fullscreenBtnText" class="hidden sm:inline">Layar Penuh</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN NAVIGATION TABS -->
+    <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-[65px] z-30 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex space-x-1 sm:space-x-4 overflow-x-auto py-2 no-scrollbar">
+                
+                <button onclick="switchTab('spinner')" id="tab-spinner" class="nav-tab text-brand-600 border-brand-600 border-b-2 font-bold px-3 py-2 text-sm flex items-center gap-2 whitespace-nowrap transition-colors">
+                    <i class="fa-solid fa-arrows-spin text-brand-500"></i> Roda Acak Siswa
+                </button>
+
+                <button onclick="switchTab('reading')" id="tab-reading" class="nav-tab text-slate-500 hover:text-brand-600 border-transparent border-b-2 font-semibold px-3 py-2 text-sm flex items-center gap-2 whitespace-nowrap transition-colors">
+                    <i class="fa-solid fa-book-open"></i> Modul Membaca
+                </button>
+
+                <button onclick="switchTab('students')" id="tab-students" class="nav-tab text-slate-500 hover:text-brand-600 border-transparent border-b-2 font-semibold px-3 py-2 text-sm flex items-center gap-2 whitespace-nowrap transition-colors">
+                    <i class="fa-solid fa-users"></i> Manajemen Siswa
+                </button>
+
+                <button onclick="switchTab('teachers')" id="tab-teachers" class="nav-tab text-slate-500 hover:text-brand-600 border-transparent border-b-2 font-semibold px-3 py-2 text-sm flex items-center gap-2 whitespace-nowrap transition-colors">
+                    <i class="fa-solid fa-id-card"></i> Guru & NIP
+                </button>
+
+                <button onclick="switchTab('history')" id="tab-history" class="nav-tab text-slate-500 hover:text-brand-600 border-transparent border-b-2 font-semibold px-3 py-2 text-sm flex items-center gap-2 whitespace-nowrap transition-colors">
+                    <i class="fa-solid fa-chart-line"></i> Riwayat & Laporan
+                </button>
+
+                <button onclick="switchTab('icebreaking')" id="tab-icebreaking" class="nav-tab text-slate-500 hover:text-brand-600 border-transparent border-b-2 font-semibold px-3 py-2 text-sm flex items-center gap-2 whitespace-nowrap transition-colors">
+                    <i class="fa-solid fa-film text-purple-600"></i> Ice Breaking
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- CONTENT WRAPPER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 no-print">
+
+        <!-- ==================== TAB 1: RODA SPINNER INTERAKTIF ==================== -->
+        <section id="section-spinner" class="tab-content block space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- Spinner Controls & Settings -->
+                <div class="lg:col-span-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+                    <div class="border-b pb-3 border-slate-100 flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-brand-500"></i> Pengaturan Roda
+                        </h2>
+                        <span id="activeCountBadge" class="bg-brand-50 text-brand-700 font-bold text-xs px-2.5 py-1 rounded-full border border-brand-200">
+                            0 Siswa Aktif
+                        </span>
+                    </div>
+
+                    <!-- Grade Filter -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Filter Tingkat Kelas</label>
+                        <select id="spinnerGradeFilter" onchange="updateSpinnerList()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <option value="ALL">Semua Kelas (Kelas 1 - 6)</option>
+                            <option value="1">Kelas 1 SD</option>
+                            <option value="2">Kelas 2 SD</option>
+                            <option value="3">Kelas 3 SD</option>
+                            <option value="4">Kelas 4 SD</option>
+                            <option value="5">Kelas 5 SD</option>
+                            <option value="6">Kelas 6 SD</option>
+                        </select>
+                    </div>
+
+                    <!-- Active Student List Preview -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-xs font-bold text-slate-600 uppercase">Daftar Roda Siswa Aktif</label>
+                            <button onclick="resetAllStudentStatus()" class="text-xs text-brand-600 hover:text-brand-800 font-bold hover:underline flex items-center gap-1">
+                                <i class="fa-solid fa-rotate-right"></i> Reset Siswa
+                            </button>
+                        </div>
+                        <div id="spinnerStudentsContainer" class="max-h-56 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1.5 bg-slate-50">
+                            <!-- Dynamic list items populated via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Spin CTA -->
+                    <button id="spinBtn" onclick="spinWheel()" class="w-full bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-extrabold text-base py-3.5 rounded-xl shadow-lg shadow-brand-500/30 transform active:scale-95 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-play text-yellow-300"></i> PUTAR RODA ACAK
+                    </button>
+                </div>
+
+                <!-- Canvas Wheel Visualizer -->
+                <div class="lg:col-span-8 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-6 sm:p-8 rounded-2xl shadow-xl text-center relative overflow-hidden flex flex-col items-center justify-center min-h-[480px]">
+                    <div class="absolute top-4 left-4 text-left flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 bg-yellow-400/20 text-yellow-300 text-xs font-bold px-3 py-1 rounded-full border border-yellow-400/30">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Mode Undian Otomatis
+                        </span>
+                    </div>
+
+                    <!-- Spinner Arrow Pointer -->
+                    <div class="relative my-4">
+                        <div class="absolute -top-5 left-1/2 -translate-x-1/2 z-20 text-red-500 text-4xl drop-shadow-md">
+                            <i class="fa-solid fa-caret-down"></i>
+                        </div>
+                        <!-- Wheel Canvas -->
+                        <canvas id="wheelCanvas" width="400" height="400" class="max-w-full h-auto drop-shadow-2xl transition-transform duration-75"></canvas>
+                    </div>
+
+                    <p id="spinnerText" class="text-slate-300 font-medium text-sm mt-2">
+                        Tekan tombol <span class="text-yellow-400 font-bold">PUTAR RODA ACAK</span> untuk memilih siswa secara otomatis.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 2: MODUL MEMBACA ==================== -->
+        <section id="section-reading" class="tab-content hidden space-y-6">
+            
+            <!-- Student Header & Reading Controls -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-brand-100 border border-brand-200 flex items-center justify-center text-brand-600 font-extrabold text-xl shadow-inner">
+                        <i class="fa-solid fa-child"></i>
+                    </div>
+                    <div>
+                        <span class="text-xs font-bold uppercase text-brand-600 tracking-wider">Siswa Aktif Membaca</span>
+                        <h2 id="readingStudentName" class="text-xl font-extrabold text-slate-800">Silakan Pilih Siswa Terlebih Dahulu</h2>
+                        <p id="readingStudentGrade" class="text-xs text-slate-500 font-medium">Kelas: - | Standard Target: - KPM</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button onclick="randomizeCurrentGradeStory()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-shuffle text-brand-600"></i> Acak Cerita Lain
+                    </button>
+                    <div class="bg-slate-900 text-white px-4 py-2 rounded-xl text-center">
+                        <div id="readingTimer" class="font-mono text-xl font-extrabold text-emerald-400">00:00</div>
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">Waktu Membaca</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GRADE 1 SPECIAL MODULES -->
+            <div id="grade1ModuleContainer" class="hidden space-y-6">
+                <!-- Sub-tabs for Grade 1 -->
+                <div class="flex space-x-2 border-b border-slate-200 pb-3 overflow-x-auto">
+                    <button onclick="switchGrade1Subtab('ejaan')" id="subtab-ejaan" class="subtab-btn bg-brand-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition whitespace-nowrap">1. Ejaan / Phonics</button>
+                    <button onclick="switchGrade1Subtab('sukukata')" id="subtab-sukukata" class="subtab-btn bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold px-4 py-2 rounded-xl transition whitespace-nowrap">2. Suku Kata Berwarna</button>
+                    <button onclick="switchGrade1Subtab('katapendek')" id="subtab-katapendek" class="subtab-btn bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold px-4 py-2 rounded-xl transition whitespace-nowrap">3. Kata Pendek</button>
+                    <button onclick="switchGrade1Subtab('kalimat')" id="subtab-kalimat" class="subtab-btn bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold px-4 py-2 rounded-xl transition whitespace-nowrap">4. Kalimat Sederhana</button>
+                </div>
+
+                <!-- Subtab Contents -->
+                <div id="g1-content-box" class="bg-white p-8 rounded-2xl border border-slate-200 text-center min-h-[300px] flex flex-col justify-center items-center shadow-sm">
+                    <!-- Dynamic Grade 1 Content Injection -->
+                </div>
+            </div>
+
+            <!-- GRADE 2-6 STORY MODULE -->
+            <div id="grade26ModuleContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 space-y-6">
+                <div class="flex flex-wrap items-center justify-between border-b border-slate-100 pb-4 gap-2">
+                    <div>
+                        <span id="storyGradeBadge" class="bg-amber-100 text-amber-800 text-xs font-extrabold px-3 py-1 rounded-full border border-amber-200">
+                            Kelas 2 SD (Target: 60 KPM)
+                        </span>
+                        <h3 id="storyTitle" class="text-2xl font-black text-slate-800 mt-2">Judul Cerita</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="adjustFontSize(-2)" class="p-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 rounded-lg border">A-</button>
+                        <button onclick="adjustFontSize(2)" class="p-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 rounded-lg border">A+</button>
+                    </div>
+                </div>
+
+                <!-- Main Story Text Area -->
+                <div id="storyTextArea" class="text-slate-700 leading-relaxed text-lg sm:text-xl font-medium space-y-4 tracking-wide bg-slate-50 p-6 sm:p-8 rounded-2xl border border-slate-200/80 min-h-[220px]">
+                    <!-- Story content goes here -->
+                </div>
+
+                <!-- Action Controls -->
+                <div class="flex flex-wrap items-center justify-between gap-4 pt-2">
+                    <button id="startReadingBtn" onclick="startReadingTimer()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Mulai Penghitung Waktu
+                    </button>
+                    <button id="finishReadingBtn" onclick="finishReadingSession()" disabled class="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-check-double"></i> Selesai Membaca & Lanjut Kuis
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 3: MANAJEMEN SISWA ==================== -->
+        <section id="section-students" class="tab-content hidden space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-extrabold text-slate-800">Manajemen Data Siswa</h2>
+                    <p class="text-xs text-slate-500">Kelola data siswa, unggah berkas Excel, atau gunakan contoh data awal sekolah.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="loadSampleParanggiData()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Muat Contoh Data SD Paranggi
+                    </button>
+                    <label class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow cursor-pointer transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i> Upload Excel/CSV
+                        <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" onchange="handleExcelUpload(event)" class="hidden">
+                    </label>
+                    <button onclick="openStudentModal()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-plus"></i> Tambah Siswa Manual
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Table Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4 bg-slate-50">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-600 uppercase">Filter Kelas:</span>
+                        <select id="studentTableGradeFilter" onchange="renderStudentTable()" class="bg-white border border-slate-300 text-xs font-bold rounded-lg px-3 py-1.5 focus:outline-none">
+                            <option value="ALL">Semua Kelas</option>
+                            <option value="1">Kelas 1</option>
+                            <option value="2">Kelas 2</option>
+                            <option value="3">Kelas 3</option>
+                            <option value="4">Kelas 4</option>
+                            <option value="5">Kelas 5</option>
+                            <option value="6">Kelas 6</option>
+                        </select>
+                    </div>
+                    <button onclick="deleteAllStudents()" class="text-xs text-red-600 hover:text-red-800 font-bold flex items-center gap-1">
+                        <i class="fa-solid fa-trash-can"></i> Hapus Semua Siswa
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/70 border-b border-slate-200 text-slate-600 text-[11px] uppercase tracking-wider font-extrabold">
+                                <th class="p-3.5 pl-6">No</th>
+                                <th class="p-3.5">Nama Siswa</th>
+                                <th class="p-3.5">NISN</th>
+                                <th class="p-3.5">Kelas</th>
+                                <th class="p-3.5">Status Roda</th>
+                                <th class="p-3.5 text-right pr-6">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentTableBody" class="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                            <!-- Rows rendered dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 4: PENGATURAN GURU, LOGO & IDENTITAS ==================== -->
+        <section id="section-teachers" class="tab-content hidden space-y-6">
+
+            <!-- Logo Upload & Identitas Sekolah Settings Card -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                <div class="border-b border-slate-100 pb-3 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-school text-brand-500"></i> Identitas Sekolah & Logo Kop Surat
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Unggah logo sekolah, atur nama sekolah, dan tempat tanda tangan untuk ditampilkan pada header aplikasi dan Kop Surat cetak laporan individu.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    <!-- Logo Upload Section -->
+                    <div class="flex flex-wrap items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div id="logoPreviewBox" class="w-20 h-20 rounded-2xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center p-2 text-center overflow-hidden shrink-0">
+                            <!-- Dynamic Logo Preview -->
+                        </div>
+                        <div class="space-y-2 flex-1 min-w-[180px]">
+                            <label class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow cursor-pointer transition inline-flex items-center gap-2">
+                                <i class="fa-solid fa-upload"></i> Unggah Logo
+                                <input type="file" id="schoolLogoInput" accept="image/*" onchange="handleLogoUpload(event)" class="hidden">
+                            </label>
+                            <button type="button" onclick="resetSchoolLogo()" class="bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs px-3.5 py-2 rounded-xl border border-slate-300 transition block">
+                                <i class="fa-solid fa-rotate-left"></i> Reset Logo
+                            </button>
+                            <p class="text-[10px] text-slate-400">PNG / JPG (Maksimal 2MB)</p>
+                        </div>
+                    </div>
+
+                    <!-- School Name & Signature Location Form Inputs -->
+                    <form id="schoolIdentityForm" onsubmit="saveSchoolIdentity(event)" class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">Nama Sekolah</label>
+                            <input type="text" id="schoolNameInput" required placeholder="Contoh: SD NEGERI PARANGGI" class="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">Tempat Tanda Tangan (Kota / Desa)</label>
+                            <input type="text" id="signLocationInput" required placeholder="Contoh: Ogolugus" class="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                        <div class="pt-1 flex justify-end">
+                            <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan Identitas Sekolah
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Teacher Settings Form -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="border-b border-slate-100 pb-4 mb-6">
+                    <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-user-gear text-brand-500"></i> Pengaturan Guru Kelas & NIP
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">
+                        Masukkan nama guru pembimbing dan NIP untuk setiap tingkat kelas (Kelas 1 s.d. 6). Data ini tersimpan otomatis dan disesuaikan pada tanda tangan laporan evaluasi membaca.
+                    </p>
+                </div>
+
+                <form id="teacherSettingsForm" onsubmit="saveTeacherSettings(event)" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Form generated dynamically for Grades 1-6 -->
+                    <div id="teacherInputsContainer" class="contents"></div>
+
+                    <div class="md:col-span-2 pt-4 border-t border-slate-100 flex justify-end">
+                        <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-sm px-6 py-3 rounded-xl shadow-lg transition flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan Guru
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 5: RIWAYAT & LAPORAN ==================== -->
+        <section id="section-history" class="tab-content hidden space-y-6">
+            <!-- Analytics Summary Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xl">
+                        <i class="fa-solid fa-book-bookmark"></i>
+                    </div>
+                    <div>
+                        <div id="statTotalSessions" class="text-2xl font-black text-slate-800">0</div>
+                        <div class="text-xs text-slate-500 font-semibold">Total Sesi Membaca</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl">
+                        <i class="fa-solid fa-gauge-high"></i>
+                    </div>
+                    <div>
+                        <div id="statAvgKPM" class="text-2xl font-black text-slate-800">0</div>
+                        <div class="text-xs text-slate-500 font-semibold">Rata-rata KPM</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xl">
+                        <i class="fa-solid fa-bullseye"></i>
+                    </div>
+                    <div>
+                        <div id="statTargetRate" class="text-2xl font-black text-slate-800">0%</div>
+                        <div class="text-xs text-slate-500 font-semibold">Tercapai Target</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xl">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div>
+                        <div id="statAvgQuiz" class="text-2xl font-black text-slate-800">0/100</div>
+                        <div class="text-xs text-slate-500 font-semibold">Rata-rata Kuis</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Table Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4 bg-slate-50">
+                    <h3 class="text-base font-extrabold text-slate-800">Daftar Riwayat Membaca Siswa</h3>
+                    <div class="flex items-center gap-2">
+                        <button onclick="deleteAllHistory()" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-trash-can"></i> Hapus Semua Riwayat
+                        </button>
+                        <button onclick="exportHistoryCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-file-csv"></i> Unduh Excel/CSV Kolektif
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/70 border-b border-slate-200 text-slate-600 text-[11px] uppercase tracking-wider font-extrabold">
+                                <th class="p-3.5 pl-6">Tanggal</th>
+                                <th class="p-3.5">Nama Siswa</th>
+                                <th class="p-3.5">Kelas</th>
+                                <th class="p-3.5">Capaian KPM</th>
+                                <th class="p-3.5">Skor Kuis</th>
+                                <th class="p-3.5">Status Target</th>
+                                <th class="p-3.5 text-right pr-6">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody" class="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 6: ICE BREAKING VIDEO PLAYER ==================== -->
+        <section id="section-icebreaking" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Main Player Display -->
+                <div class="lg:col-span-8 bg-slate-900 rounded-2xl p-4 shadow-xl border border-slate-800 text-white flex flex-col justify-between">
+                    <div id="videoPlayerContainer" class="aspect-video bg-black rounded-xl overflow-hidden flex items-center justify-center relative">
+                        <div class="text-center p-6 text-slate-400">
+                            <i class="fa-solid fa-film text-5xl mb-3 text-purple-500 animate-bounce"></i>
+                            <p class="font-semibold text-sm">Pilih video dari playlist di sebelah kanan untuk memulai ice breaking.</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center justify-between px-2">
+                        <div>
+                            <h3 id="currentVideoTitle" class="font-bold text-lg text-white">Ice Breaking SD Paranggi</h3>
+                            <p id="currentVideoDesc" class="text-xs text-slate-400">Kegiatan penyegaran sebelum/sesudah membaca</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Playlist & Add Controls -->
+                <div class="lg:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+                    <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+                        <h3 class="font-extrabold text-slate-800 text-base flex items-center gap-2">
+                            <i class="fa-solid fa-list-ul text-purple-600"></i> Playlist Video
+                        </h3>
+                    </div>
+
+                    <!-- Video Upload & Input Forms -->
+                    <div class="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-slate-600 uppercase">Tambah Video Baru</label>
+                        <input type="text" id="videoTitleInput" placeholder="Judul Video" class="w-full text-xs p-2.5 border rounded-lg focus:outline-none">
+                        <input type="text" id="videoUrlInput" placeholder="URL YouTube / Direct MP4 Link" class="w-full text-xs p-2.5 border rounded-lg focus:outline-none">
+                        
+                        <div class="flex items-center justify-between gap-2 pt-1">
+                            <button onclick="addVideoFromUrl()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-2 rounded-lg transition">
+                                Tambah URL
+                            </button>
+                            <label class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-center font-bold text-xs py-2 rounded-lg cursor-pointer transition">
+                                Upload Lokal MP4
+                                <input type="file" id="localVideoInput" accept="video/mp4,video/webm" onchange="handleLocalVideoUpload(event)" class="hidden">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Playlist Scroll Container -->
+                    <div id="playlistContainer" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+                        <!-- Populated dynamically with delete action buttons -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==================== QUIZ COMPREHENSIVE MODAL ==================== -->
+    <div id="quizModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto border border-slate-100">
+            <div class="border-b border-slate-100 pb-4 flex items-center justify-between">
+                <div>
+                    <span class="bg-purple-100 text-purple-800 text-[11px] font-extrabold px-3 py-1 rounded-full uppercase">Kuis Pemahaman Bacaan</span>
+                    <h3 class="text-xl font-extrabold text-slate-800 mt-1">Uji Pemahaman 3 Soal</h3>
+                </div>
+                <div class="text-right">
+                    <span id="quizStudentInfo" class="text-xs font-bold text-slate-500">Siswa: -</span>
+                </div>
+            </div>
+
+            <!-- Quiz Questions Form -->
+            <form id="quizForm" onsubmit="submitQuizAndFinish(event)" class="space-y-6">
+                <div id="quizQuestionsContainer" class="space-y-5">
+                    <!-- Dynamic Questions Injection -->
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <p class="text-xs text-slate-400 font-medium">Jawab seluruh pertanyaan untuk menyelesaikan sesi.</p>
+                    <button type="submit" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm px-6 py-3 rounded-xl shadow-lg transition flex items-center gap-2">
+                        <i class="fa-solid fa-paper-plane"></i> Kirim & Simpan Hasil
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== STUDENT ADD/EDIT MODAL ==================== -->
+    <div id="studentModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 id="studentModalTitle" class="font-extrabold text-lg text-slate-800">Tambah Data Siswa</h3>
+                <button type="button" onclick="closeStudentModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="studentForm" onsubmit="saveStudentForm(event)" class="space-y-4">
+                <input type="hidden" id="studentEditId">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Lengkap Siswa</label>
+                    <input type="text" id="studentInputName" required class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">NISN (Nomor Induk)</label>
+                    <input type="text" id="studentInputNisn" required class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tingkat Kelas</label>
+                    <select id="studentInputGrade" required class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        <option value="1">Kelas 1 SD</option>
+                        <option value="2">Kelas 2 SD</option>
+                        <option value="3">Kelas 3 SD</option>
+                        <option value="4">Kelas 4 SD</option>
+                        <option value="5">Kelas 5 SD</option>
+                        <option value="6">Kelas 6 SD</option>
+                    </select>
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeStudentModal()" class="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 text-xs font-extrabold bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow">Simpan Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== CUSTOM CONFIRMATION MODAL ==================== -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+            <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 id="confirmTitle" class="font-extrabold text-lg text-slate-800">Konfirmasi Hapus</h3>
+            <p id="confirmMessage" class="text-xs text-slate-500">Apakah Anda yakin ingin melanjutkan tindakan ini?</p>
+            <div class="pt-2 flex justify-center gap-3">
+                <button type="button" onclick="closeConfirmModal(false)" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl border border-slate-200">Batal</button>
+                <button type="button" onclick="closeConfirmModal(true)" class="px-5 py-2 text-xs font-extrabold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TYPE CONFIRMATION MODAL (TYPING SAFETY) ==================== -->
+    <div id="typeConfirmModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+            <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl shadow-inner">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h3 id="typeConfirmTitle" class="font-extrabold text-lg text-slate-800">Konfirmasi Penghapusan</h3>
+                <p id="typeConfirmMessage" class="text-xs text-slate-500 mt-1">Tindakan ini permanen dan tidak dapat dibatalkan.</p>
+            </div>
+            <div class="text-left bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                <label id="typeConfirmPrompt" class="block text-[11px] font-bold text-slate-600">
+                    Ketik teks konfirmasi:
+                </label>
+                <input type="text" id="typeConfirmInput" autocomplete="off" class="w-full text-sm p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none font-mono text-center uppercase tracking-wider font-bold" placeholder="...">
+            </div>
+            <div class="pt-1 flex justify-center gap-3">
+                <button type="button" onclick="closeTypeConfirmModal(false)" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl border border-slate-200 transition">Batal</button>
+                <button type="button" id="typeConfirmSubmitBtn" disabled onclick="closeTypeConfirmModal(true)" class="px-5 py-2 text-xs font-extrabold bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl shadow transition">Hapus Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PRINTABLE INDIVIDUAL REPORT TEMPLATE ==================== -->
+    <div id="printableReportArea" class="hidden">
+        <!-- Document Header -->
+        <div class="border-b-4 border-slate-900 pb-4 mb-6 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div id="printLogoContainer" class="w-16 h-16 flex items-center justify-center shrink-0">
+                    <!-- Dynamic Print Logo -->
+                </div>
+                <div>
+                    <h1 id="printSchoolName" class="text-2xl font-black tracking-wider text-slate-900 uppercase">SD NEGERI PARANGGI</h1>
+                    <p class="text-sm font-semibold text-slate-700">RAPOR EVALUASI KELANCARAN MEMBACA & LITERASI SISWA</p>
+                    <p class="text-xs text-slate-500">Guru Pembimbing: <span id="printTeacherHeader">ARDIANSYAH, S.Pd</span></p>
+                </div>
+            </div>
+            <div class="text-right shrink-0">
+                <span class="inline-block border-2 border-slate-900 px-3 py-1 font-bold text-xs uppercase">DOKUMEN RESMI</span>
+            </div>
+        </div>
+
+        <!-- Student & Session Info Grid -->
+        <div class="grid grid-cols-2 gap-4 mb-6 bg-slate-50 p-4 border border-slate-300 rounded-lg text-xs">
+            <div>
+                <p><strong>Nama Siswa:</strong> <span id="printStudentName">-</span></p>
+                <p><strong>NISN:</strong> <span id="printStudentNisn">-</span></p>
+                <p><strong>Tingkat Kelas:</strong> <span id="printStudentGrade">-</span></p>
+            </div>
+            <div>
+                <p><strong>Tanggal Asesmen:</strong> <span id="printDate">-</span></p>
+                <p><strong>Peringkat Kelancaran Kelas:</strong> <span id="printClassRank" class="font-extrabold text-slate-900">-</span></p>
+                <p><strong>Status Target KPM:</strong> <span id="printTargetStatus" class="font-bold">-</span></p>
+            </div>
+        </div>
+
+        <!-- Metric Scores -->
+        <div class="grid grid-cols-3 gap-4 mb-6 text-center">
+            <div class="border border-slate-300 p-3 rounded">
+                <div class="text-[10px] uppercase text-slate-500 font-bold">Kecepatan Membaca</div>
+                <div id="printKpmValue" class="text-xl font-black text-slate-900">0 KPM</div>
+                <div id="printKpmTarget" class="text-[10px] text-slate-600">(Target: 0 KPM)</div>
+            </div>
+            <div class="border border-slate-300 p-3 rounded">
+                <div class="text-[10px] uppercase text-slate-500 font-bold">Skor Pemahaman Kuis</div>
+                <div id="printQuizScore" class="text-xl font-black text-slate-900">0 / 100</div>
+                <div class="text-[10px] text-slate-600">(Evaluasi 3 Soal)</div>
+            </div>
+            <div class="border border-slate-300 p-3 rounded">
+                <div class="text-[10px] uppercase text-slate-500 font-bold">Waktu Membaca</div>
+                <div id="printDuration" class="text-xl font-black text-slate-900">0 Detik</div>
+                <div class="text-[10px] text-slate-600">(Total Durasi)</div>
+            </div>
+        </div>
+
+        <!-- Story Content for Home Guidance -->
+        <div class="mb-6 border border-slate-300 rounded p-4">
+            <h3 class="font-bold text-sm uppercase border-b pb-2 mb-2 text-slate-800">TEKS BACAAN BIMBINGAN DI RUMAH</h3>
+            <p id="printStoryTitle" class="font-extrabold text-sm mb-2 text-slate-900">Judul Cerita</p>
+            <div id="printStoryContent" class="text-xs leading-relaxed text-slate-700 italic bg-slate-50 p-3 rounded border">
+                <!-- Text printed here -->
+            </div>
+            <div class="mt-3 text-[11px] bg-amber-50 border border-amber-200 p-2.5 rounded text-amber-900">
+                <strong><i class="fa-solid fa-circle-info"></i> Petunjuk untuk Orang Tua / Wali di Rumah:</strong>
+                <p class="mt-0.5">Mohon mendampingi putra/putri Anda untuk membaca ulang cerita di atas sekurang-kurangnya 10–15 menit setiap hari di rumah guna meningkatkan kelancaran membaca dan pemahaman teks.</p>
+            </div>
+        </div>
+
+        <!-- Signatures -->
+        <div class="grid grid-cols-2 gap-8 pt-6 text-center text-xs">
+            <div>
+                <p>Mengetahui,</p>
+                <p class="font-bold">Orang Tua / Wali Siswa</p>
+                <div class="h-16"></div>
+                <p class="border-b border-slate-400 inline-block w-48">( ............................................ )</p>
+            </div>
+            <div>
+                <p><span id="printSignLocation">Ogolugus</span>, <span id="printSignDate">-</span></p>
+                <p class="font-bold">Guru Pembimbing Kelas <span id="printSignGrade">1</span></p>
+                <div class="h-16"></div>
+                <p id="printSignTeacherName" class="font-extrabold underline">ARDIANSYAH, S.Pd</p>
+                <p id="printSignTeacherNip" class="text-[10px]">NIP. 19850101 201001 1 001</p>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- JAVASCRIPT ARCHITECTURE & LOGIC -->
+    <script>
+        /* ==================== GLOBAL APP STATE ==================== */
+        const KPM_TARGETS = {
+            1: 40,
+            2: 60,
+            3: 80,
+            4: 100,
+            5: 120,
+            6: 140
+        };
+
+        // Storage Keys
+        const STORAGE_STUDENTS = 'sd_paranggi_students';
+        const STORAGE_TEACHERS = 'sd_paranggi_teachers';
+        const STORAGE_HISTORY = 'sd_paranggi_history';
+        const STORAGE_LOGO = 'sd_paranggi_logo';
+        const STORAGE_SCHOOL_NAME = 'sd_paranggi_school_name';
+        const STORAGE_SIGN_LOCATION = 'sd_paranggi_sign_location';
+        const STORAGE_ICEBREAKING = 'sd_paranggi_icebreaking';
+
+        // State variables
+        let students = JSON.parse(localStorage.getItem(STORAGE_STUDENTS)) || [];
+        let teachers = JSON.parse(localStorage.getItem(STORAGE_TEACHERS)) || getDefaultTeachers();
+        let historyLogs = JSON.parse(localStorage.getItem(STORAGE_HISTORY)) || [];
+        let schoolLogo = localStorage.getItem(STORAGE_LOGO) || null;
+        let schoolName = localStorage.getItem(STORAGE_SCHOOL_NAME) || 'SD NEGERI PARANGGI';
+        let signLocation = localStorage.getItem(STORAGE_SIGN_LOCATION) || 'Ogolugus';
+
+        let iceBreakingPlaylist = JSON.parse(localStorage.getItem(STORAGE_ICEBREAKING)) || [
+            { id: 1, title: 'Tepuk Semangat & Ice Breaking SD', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', isLocal: false },
+            { id: 2, title: 'Senam Brain Gym - Otak Kanan & Kiri', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', isLocal: false }
+        ];
+
+        let currentActiveStudent = null;
+        let currentReadingStory = null;
+        let readingTimerInterval = null;
+        let readingSecondsElapsed = 0;
+        let isReadingActive = false;
+        let currentFontSize = 18;
+        let wasFullscreenBeforePrint = false;
+
+        // Confirm Modal Handlers
+        let pendingConfirmAction = null;
+        let pendingTypeConfirmAction = null;
+        let expectedConfirmText = "";
+
+        /* ==================== TOAST & MODAL SYSTEM ==================== */
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            const bgColors = {
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-red-600 text-white',
+                warning: 'bg-amber-500 text-white',
+                info: 'bg-brand-600 text-white'
+            };
+            const icons = {
+                success: 'fa-circle-check',
+                error: 'fa-circle-xmark',
+                warning: 'fa-triangle-exclamation',
+                info: 'fa-circle-info'
+            };
+
+            toast.className = `${bgColors[type] || bgColors.info} px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs font-bold pointer-events-auto animate-toast border border-white/20`;
+            toast.innerHTML = `
+                <i class="fa-solid ${icons[type] || icons.info} text-base"></i>
+                <span class="flex-1">${message}</span>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        function showConfirmModal(title, message, onConfirm) {
+            document.getElementById('confirmTitle').innerText = title;
+            document.getElementById('confirmMessage').innerText = message;
+            pendingConfirmAction = onConfirm;
+            document.getElementById('confirmModal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal(result) {
+            document.getElementById('confirmModal').classList.add('hidden');
+            if (result && typeof pendingConfirmAction === 'function') {
+                pendingConfirmAction();
+            }
+            pendingConfirmAction = null;
+        }
+
+        /* TYPING CONFIRMATION MODAL */
+        function showTypeConfirmModal(title, message, requiredText, onConfirm) {
+            document.getElementById('typeConfirmTitle').innerText = title;
+            document.getElementById('typeConfirmMessage').innerHTML = message;
+            document.getElementById('typeConfirmPrompt').innerHTML = `Ketik <span class="text-red-600 font-extrabold font-mono underline">${requiredText}</span> untuk konfirmasi:`;
+            
+            const inputEl = document.getElementById('typeConfirmInput');
+            const submitBtn = document.getElementById('typeConfirmSubmitBtn');
+            
+            inputEl.value = '';
+            submitBtn.disabled = true;
+            expectedConfirmText = requiredText.trim().toUpperCase();
+            pendingTypeConfirmAction = onConfirm;
+
+            inputEl.oninput = function() {
+                if (inputEl.value.trim().toUpperCase() === expectedConfirmText) {
+                    submitBtn.disabled = false;
+                } else {
+                    submitBtn.disabled = true;
+                }
+            };
+
+            document.getElementById('typeConfirmModal').classList.remove('hidden');
+            setTimeout(() => inputEl.focus(), 100);
+        }
+
+        function closeTypeConfirmModal(confirmed) {
+            document.getElementById('typeConfirmModal').classList.add('hidden');
+            if (confirmed && typeof pendingTypeConfirmAction === 'function') {
+                pendingTypeConfirmAction();
+            }
+            pendingTypeConfirmAction = null;
+            expectedConfirmText = "";
+        }
+
+        /* ==================== FULLSCREEN CONSISTENCY LOGIC ==================== */
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    showToast(`Gagal masuk mode layar penuh: ${err.message}`, 'error');
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        document.addEventListener('fullscreenchange', updateFullscreenUI);
+
+        function updateFullscreenUI() {
+            const isFS = !!document.fullscreenElement;
+            const fsBtnText = document.getElementById('fullscreenBtnText');
+            const fsBtnIcon = document.getElementById('fullscreenBtnIcon');
+            const fsBadge = document.getElementById('fullscreenBadge');
+
+            if (isFS) {
+                if (fsBtnText) fsBtnText.innerText = 'Keluar Layar Penuh';
+                if (fsBtnIcon) fsBtnIcon.className = 'fa-solid fa-compress text-sm text-yellow-300';
+                if (fsBadge) fsBadge.classList.remove('hidden');
+            } else {
+                if (fsBtnText) fsBtnText.innerText = 'Layar Penuh';
+                if (fsBtnIcon) fsBtnIcon.className = 'fa-solid fa-expand text-sm';
+                if (fsBadge) fsBadge.classList.add('hidden');
+            }
+        }
+
+        window.addEventListener('beforeprint', () => {
+            wasFullscreenBeforePrint = !!document.fullscreenElement;
+        });
+
+        window.addEventListener('afterprint', () => {
+            const reportArea = document.getElementById('printableReportArea');
+            if (reportArea) reportArea.classList.add('hidden');
+
+            if (wasFullscreenBeforePrint && !document.fullscreenElement) {
+                setTimeout(() => {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                }, 500);
+            }
+        });
+
+        /* ==================== AUDIO SYNTHESIS & TTS ==================== */
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+
+        function playTickSound() {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.04);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.04);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.04);
+            } catch(e) {}
+        }
+
+        function playWinSound() {
+            try {
+                const ctx = getAudioContext();
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + idx * 0.08);
+                    osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
+                });
+            } catch(e) {}
+        }
+
+        function speakIndonesian(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID';
+                utterance.rate = 0.95;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function getDefaultTeachers() {
+            const list = {};
+            for (let i = 1; i <= 6; i++) {
+                list[i] = {
+                    name: 'ARDIANSYAH, S.Pd',
+                    nip: '19850101 201001 1 00' + i
+                };
+            }
+            return list;
+        }
+
+        /* ==================== 10 REAL UNIQUE STORIES & QUIZZES PER GRADE ==================== */
+        const STORY_BANK = {
+            1: [
+                {
+                    title: "Ejaan Sederhana Budi",
+                    type: "g1",
+                    subType: "ejaan",
+                    content: "b-a ba, d-i di = badi. m-a ma, m-a ma = mama. s-a sa, t-u tu = satu.",
+                    quiz: [
+                        { q: "Kata apakah b-a-d-i?", options: ["Badi", "Budi", "Bina", "Beda"], answer: 0 },
+                        { q: "Huruf awal kata Mama adalah?", options: ["S", "M", "B", "T"], answer: 1 },
+                        { q: "Berapa huruf pada kata Satu?", options: ["2", "3", "4", "5"], answer: 2 }
+                    ]
+                },
+                {
+                    title: "Membaca Suku Kata Berwarna",
+                    type: "g1",
+                    subType: "sukukata",
+                    content: [
+                        { text: "sa", color: "text-blue-600 font-bold" },
+                        { text: "ya", color: "text-red-600 font-bold" },
+                        { text: " su", color: "text-emerald-600 font-bold" },
+                        { text: "ka", color: "text-purple-600 font-bold" },
+                        { text: " ba", color: "text-amber-600 font-bold" },
+                        { text: "ca", color: "text-pink-600 font-bold" },
+                        { text: " bu", color: "text-indigo-600 font-bold" },
+                        { text: "ku", color: "text-teal-600 font-bold" }
+                    ],
+                    quiz: [
+                        { q: "Apa kata pertama pada bacaan?", options: ["Suka", "Saya", "Baca", "Buku"], answer: 1 },
+                        { q: "Apa yang disukai anak tersebut?", options: ["Makan", "Membaca buku", "Tidur", "Lari"], answer: 1 },
+                        { q: "Suku kata 'ca' berwarna apa?", options: ["Merah", "Pink", "Biru", "Hijau"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Kata Pendek Bergambar",
+                    type: "g1",
+                    subType: "katapendek",
+                    content: "Bola. Baju. Meja. Kuda. Rusa. Ikan. Topi. Sapu.",
+                    quiz: [
+                        { q: "Benda apa yang dipakai di kepala?", options: ["Baju", "Topi", "Sapu", "Meja"], answer: 1 },
+                        { q: "Hewan apa yang ada di bacaan?", options: ["Kucing", "Kuda", "Ayam", "Bebek"], answer: 1 },
+                        { q: "Benda apa untuk membersihkan lantai?", options: ["Baju", "Meja", "Sapu", "Bola"], answer: 2 }
+                    ]
+                },
+                {
+                    title: "Kalimat Sederhana Kelas 1",
+                    type: "g1",
+                    subType: "kalimat",
+                    content: "Ini ibu Budi. Ibu beli buah apel segar. Apel manis rasanya. Budi suka makan apel.",
+                    quiz: [
+                        { q: "Siapa yang membeli buah?", options: ["Budi", "Ibu Budi", "Ayah", "Paman"], answer: 1 },
+                        { q: "Buah apa yang dibeli?", options: ["Jeruk", "Mangga", "Apel", "Pisang"], answer: 2 },
+                        { q: "Bagaimana rasa buah apel?", options: ["Pahit", "Asin", "Manis", "Pedas"], answer: 2 }
+                    ]
+                },
+                {
+                    title: "Kucing Putih Budi",
+                    type: "g1",
+                    subType: "kalimat",
+                    content: "Budi punya kucing putih. Nama kucing itu Momi. Momi suka makan ikan segar. Budi sayang Momi.",
+                    quiz: [
+                        { q: "Siapa pemilik kucing putih?", options: ["Siti", "Budi", "Eko", "Ani"], answer: 1 },
+                        { q: "Siapa nama kucing Budi?", options: ["Momi", "Mimi", "Pus", "Milo"], answer: 0 },
+                        { q: "Apa makanan kesukaan Momi?", options: ["Roti", "Rumput", "Ikan segar", "Jagung"], answer: 2 }
+                    ]
+                },
+                {
+                    title: "Kebun Sayur Pak Tani",
+                    type: "g1",
+                    subType: "kalimat",
+                    content: "Pak Tani punya kebun sayur. Ada bayam dan wortel. Daun bayam hijau segar. Kelinci suka makan wortel.",
+                    quiz: [
+                        { q: "Siapa yang punya kebun sayur?", options: ["Pak Tani", "Pak Guru", "Pak Dokter", "Pak Polisi"], answer: 0 },
+                        { q: "Sayur apa saja yang ada di kebun?", options: ["Jagung dan kedelai", "Bayam dan wortel", "Cabai dan bawang", "Tomat dan kentang"], answer: 1 },
+                        { q: "Hewan apa yang suka makan wortel?", options: ["Kucing", "Burung", "Kelinci", "Ikan"], answer: 2 }
+                    ]
+                },
+                {
+                    title: "Sepeda Baru Ani",
+                    type: "g1",
+                    subType: "kalimat",
+                    content: "Ani dapat hadiah sepeda baru. Sepeda Ani warna merah. Roda sepeda ada dua. Ani naik sepeda di taman.",
+                    quiz: [
+                        { q: "Siapa yang dapat sepeda baru?", options: ["Ani", "Budi", "Cici", "Dina"], answer: 0 },
+                        { q: "Apa warna sepeda Ani?", options: ["Biru", "Kuning", "Merah", "Hijau"], answer: 2 },
+                        { q: "Di mana Ani naik sepeda?", options: ["Di kamar", "Di taman", "Di kelas", "Di dapur"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Burung Pipit di Pohon Mangga",
+                    type: "g1",
+                    subType: "kalimat",
+                    content: "Burung pipit terbang tinggi. Burung hinggap di pohon mangga. Burung bernyanyi merdu sekali.",
+                    quiz: [
+                        { q: "Burung apa yang terbang tinggi?", options: ["Burung elang", "Burung pipit", "Burung hantu", "Burung merak"], answer: 1 },
+                        { q: "Di mana burung hinggap?", options: ["Di atas genteng", "Di pohon mangga", "Di tiang listrik", "Di jalan"], answer: 1 },
+                        { q: "Bagaimana suara nyanyian burung?", options: ["Pekat", "Lantang", "Merdu sekali", "Kasar"], answer: 2 }
+                    ]
+                },
+                {
+                    title: "Mencuci Tangan Sebelum Makan",
+                    type: "g1",
+                    subType: "kalimat",
+                    content: "Siti rajin mencuci tangan. Siti cuci tangan dengan sabun. Tangan jadi bersih dan bebas kuman.",
+                    quiz: [
+                        { q: "Siapa yang rajin mencuci tangan?", options: ["Ani", "Budi", "Siti", "Dodo"], answer: 2 },
+                        { q: "Siti mencuci tangan menggunakan apa?", options: ["Air minum", "Sabun", "Minyak", "Tisu"], answer: 1 },
+                        { q: "Mengapa kita harus mencuci tangan?", options: ["Agar basah", "Agar bersih dan bebas kuman", "Agar wangi saja", "Agar bisa bermain"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Pagi Hari yang Cerah",
+                    type: "g1",
+                    subType: "kalimat",
+                    content: "Matahari terbit di timur. Pagi hari sangat cerah. Ayam jantan berkokok nyaring. Anak-anak siap berangkat ke sekolah.",
+                    quiz: [
+                        { q: "Di mana matahari terbit?", options: ["Di barat", "Di timur", "Di selatan", "Di utara"], answer: 1 },
+                        { q: "Suara hewan apa yang berkokok nyaring?", options: ["Bebek", "Ayam jantan", "Kambing", "Kucing"], answer: 1 },
+                        { q: "Ke mana anak-anak siap berangkat?", options: ["Ke pasar", "Ke sekolah", "Ke taman", "Ke laut"], answer: 1 }
+                    ]
+                }
+            ],
+            2: [
+                {
+                    title: "Kucing Kecil Bernama Momi",
+                    content: "Momi adalah seekor kucing kecil berwarna putih bersih. Setiap pagi Momi suka bermain di halaman rumah. Momi sangat gemar mengejar kupu-kupu berwarna kuning. Ibu Budi selalu memberikan susu segar untuk Momi setiap sore.",
+                    quiz: [
+                        { q: "Apa warna bulu kucing Momi?", options: ["Hitam", "Putih bersih", "Cokelat", "Abu-abu"], answer: 1 },
+                        { q: "Hewan apa yang suka dikejar Momi?", options: ["Kupu-kupu", "Burung", "Tikus", "Lalat"], answer: 0 },
+                        { q: "Minuman apa yang diberikan Ibu setiap sore?", options: ["Air teh", "Susu segar", "Jus jeruk", "Air kelapa"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Taman Bunga Sekolah",
+                    content: "Di depan kelas dua terdapat taman bunga yang indah. Anak-anak rajin menyiram bunga mawar dan melati setiap pagi. Bunga-bunga tumbuh mekar dan harum aromanya. Lebah dan kupu-kupu datang menari di atas bunga.",
+                    quiz: [
+                        { q: "Di mana letak taman bunga tersebut?", options: ["Di balik lapangan", "Di depan kelas dua", "Di ruang guru", "Di kantin"], answer: 1 },
+                        { q: "Bunga apa saja yang tumbuh di taman?", options: ["Mawar dan Melati", "Anggrek dan Tulip", "Kamboja dan Matahari", "Dahlia dan Lily"], answer: 0 },
+                        { q: "Kapan anak-anak menyiram bunga?", options: ["Siang hari", "Setiap pagi", "Malam hari", "Sore hari"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Membantu Ibu di Dapur",
+                    content: "Setiap hari Minggu, Cici membantu Ibu menyiapkan makan siang. Cici mencuci sayur wortel dan timun sampai bersih. Ibu memasak sup ayam yang lezat. Cici merasa bangga bisa belajar memasak bersama Ibu.",
+                    quiz: [
+                        { q: "Kapan Cici membantu Ibu memasak?", options: ["Setiap hari Senin", "Setiap hari Minggu", "Setiap hari Jumat", "Setiap hari Sabtu"], answer: 1 },
+                        { q: "Sayur apa yang dicuci oleh Cici?", options: ["Bayam dan kangkung", "Wortel dan timun", "Kubis dan sawi", "Tomat dan kentang"], answer: 1 },
+                        { q: "Masakan apa yang dibuat oleh Ibu?", options: ["Nasi goreng", "Sup ayam", "Soto daging", "Mie goreng"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Kelinci Suka Makan Wortel",
+                    content: "Deni memelihara sepasang kelinci berbulu tebal. Kelinci Deni diberi nama Mimi dan Pipi. Setiap sore Deni memberi mereka makan wortel dan kangkung segar. Mimi dan Pipi suka melompat-lompat gembira di dalam kandang yang bersih.",
+                    quiz: [
+                        { q: "Siapa nama kelinci peliharaan Deni?", options: ["Momi dan Boni", "Mimi dan Pipi", "Kiki dan Koko", "Dono dan Kasino"], answer: 1 },
+                        { q: "Makanan apa yang diberikan Deni setiap sore?", options: ["Beras dan jagung", "Wortel dan kangkung", "Roti dan biskuit", "Buah apel"], answer: 1 },
+                        { q: "Bagaimana kondisi kandang kelinci Deni?", options: ["Kotor", "Bersih", "Basah", "Sempit"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Bermain Layang-Layang",
+                    content: "Sore hari angin berembus sepoi-sepoi di lapangan desa. Edo dan teman-temannya menerbangkan layang-layang. Layang-layang Edo berbentuk burung dengan warna biru terang. Layang-layang itu membumbung tinggi menari di udara.",
+                    quiz: [
+                        { q: "Di mana Edo dan teman-temannya bermain layang-layang?", options: ["Di dalam rumah", "Di lapangan desa", "Di jalan raya", "Di tepi sungai"], answer: 1 },
+                        { q: "Berbentuk apakah layang-layang milik Edo?", options: ["Ikan", "Burung", "Bintang", "Naga"], answer: 1 },
+                        { q: "Apa warna layang-layang Edo?", options: ["Merah", "Biru terang", "Kuning", "Hijau"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Pasar Tradisional yang Rame",
+                    content: "Ibu mengajak Lina pergi ke pasar tradisional pada pagi hari. Di sana banyak pedagang menjual buah, sayur, dan ikan segar. Ibu membeli buah jeruk manis dan ikan bandeng. Lina senang melihat suasana pasar yang ramah dan bersih.",
+                    quiz: [
+                        { q: "Ke mana Ibu mengajak Lina pergi?", options: ["Ke super market", "Ke pasar tradisional", "Ke toko buku", "Ke apotek"], answer: 1 },
+                        { q: "Buah apa yang dibeli Ibu di pasar?", options: ["Mangga", "Jeruk manis", "Pisang", "Apel"], answer: 1 },
+                        { q: "Ikan apa yang dibeli oleh Ibu?", options: ["Ikan lele", "Ikan bandeng", "Ikan gurame", "Ikan tongkol"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Piket Bersama Hari Selasa",
+                    content: "Hari Selasa adalah jadwal piket kelas untuk Doni, Siti, dan Budi. Doni menyapu lantai hingga bersih dari debu. Siti menyapu papan tulis, sedangkan Budi merapikan meja guru. Kelas mereka menjadi harum dan siap untuk belajar.",
+                    quiz: [
+                        { q: "Hari apa jadwal piket Doni dan teman-temannya?", options: ["Senin", "Selasa", "Rabu", "Kamis"], answer: 1 },
+                        { q: "Tugas apa yang dilakukan oleh Siti?", options: ["Menyapu lantai", "Menghapus papan tulis", "Merapikan meja guru", "Menyiram bunga"], answer: 1 },
+                        { q: "Siapa yang bertugas merapikan meja guru?", options: ["Doni", "Siti", "Budi", "Lina"], answer: 2 }
+                    ]
+                },
+                {
+                    title: "Semut dan Tetes Madu",
+                    content: "Seekor semut kecil menemukan setetes madu manis di atas meja. Semut itu tidak memakannya sendiri. Ia memanggil teman-temannya untuk bekerja sama membawa madu ke sarang. Mereka sangat rukun dan saling membantu.",
+                    quiz: [
+                        { q: "Apa yang ditemukan oleh semut kecil di atas meja?", options: ["Setetes air", "Setetes madu manis", "Sebiji beras", "Potongan roti"], answer: 1 },
+                        { q: "Apa yang dilakukan semut setelah menemukan madu?", options: ["Memakannya sendiri", "Memanggil teman-temannya", "Meninggalkannya", "Membuangnya"], answer: 1 },
+                        { q: "Sifat baik apa yang dicontohkan para semut?", options: ["Sombong", "Kerja sama dan rukun", "Malas", "Penakut"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Anak Ayam yang Kebasahan",
+                    content: "Hujan deras turun secara tiba-tiba. Seekor anak ayam kebasahan di bawah pohon. Budi yang melihatnya langsung mengambil anak ayam itu dan mengeringkan bulunya dengan handuk hangat. Induk ayam berkokok senang.",
+                    quiz: [
+                        { q: "Mengapa anak ayam menjadi kebasahan?", options: ["Mandi di sungai", "Kena hujan deras", "Tersiram air", "Terjatuh ke sumur"], answer: 1 },
+                        { q: "Bagaimana cara Budi membantu anak ayam?", options: ["Mengeringkan bulu dengan handuk hangat", "Memberinya makan", "Memasukannya ke dalam air", "Meninggalkannya"], answer: 0 },
+                        { q: "Bagaimana perasaan induk ayam melihat anaknya diselamatkan?", options: ["Marah", "Sedih", "Senang", "Takut"], answer: 2 }
+                    ]
+                },
+                {
+                    title: "Menabung di Celengan Ayam",
+                    content: "Tono punya celengan plastik berbentuk ayam warna merah. Setiap hari Tono menyisihkan uang saku seribu rupiah untuk ditabung. Tono bercita-cita membeli buku cerita baru dari uang tabungannya sendiri.",
+                    quiz: [
+                        { q: "Berbentuk apakah celengan milik Tono?", options: ["Sapi", "Ayam", "Kelinci", "Gajah"], answer: 1 },
+                        { q: "Berapa uang yang disisihkan Tono setiap hari?", options: ["Lima ratus rupiah", "Seribu rupiah", "Lima ribu rupiah", "Sepuluh ribu rupiah"], answer: 1 },
+                        { q: "Apa cita-cita Tono dari uang tabungannya?", options: ["Membeli mainan", "Membeli buku cerita baru", "Membeli es krim", "Membeli sepeda"], answer: 1 }
+                    ]
+                }
+            ],
+            3: [
+                {
+                    title: "Menanam Pohon di Halaman Sekolah",
+                    content: "Hari Sabtu siswa kelas tiga mengadakan kegiatan penghijauan. Mereka membawa bibit pohon mangga dan jambu dari rumah. Bersama Bapak Ardiansyah, para siswa menggali tanah dan menanam bibit dengan gembira. Penghijauan bermanfaat membuat udara sekolah menjadi segar dan sejuk.",
+                    quiz: [
+                        { q: "Hari apa siswa mengadakan penghijauan?", options: ["Senin", "Kamis", "Sabtu", "Minggu"], answer: 2 },
+                        { q: "Bibit pohon apa saja yang ditanam?", options: ["Mangga dan Jambu", "Kelapa dan Pisang", "Jeruk dan Apel", "Durian dan Rambutan"], answer: 0 },
+                        { q: "Apa manfaat dari kegiatan penghijauan tersebut?", options: ["Membuat tanah becek", "Membuat udara segar dan sejuk", "Menghabiskan waktu", "Menambah sampah"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Petualangan Kupu-Kupu Kuning",
+                    content: "Seekor ulat hijau yang lucu makan daun teh dengan lahap. Setelah beberapa hari, ulat itu beristirahat menjadi kepompong. Seminggu kemudian, lahirlah kupu-kupu cantik bernoda kuning emas. Kupu-kupu itu terbang bebas mencari nektar di kebun bunga.",
+                    quiz: [
+                        { q: "Makanan apa yang dimakan ulat hijau?", options: ["Buah apel", "Daun teh", "Bunga mawar", "Rumput liar"], answer: 1 },
+                        { q: "Menjadi apakah ulat sebelum berubah menjadi kupu-kupu?", options: ["Telur", "Kepompong", "Jangkrik", "Semut"], answer: 1 },
+                        { q: "Apa yang dicari kupu-kupu di kebun bunga?", options: ["Madu", "Nektar", "Air hujan", "Biji-bijian"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Kerja Bakti Desa Ogolugus",
+                    content: "Warga Desa Ogolugus berkumpul di balai desa untuk kerja bakti membersihkan selokan. Menjelang musim hujan, selokan harus bersih agar tidak menyumbat aliran air yang dapat menyebabkan banjir. Anak-anak membantu mengumpulkan sampah daun kering ke dalam karung.",
+                    quiz: [
+                        { q: "Di mana warga Desa Ogolugus berkumpul?", options: ["Di lapangan bola", "Di balai desa", "Di sekolah", "Di pasar"], answer: 1 },
+                        { q: "Mengapa selokan harus dibersihkan menjelang musim hujan?", options: ["Agar indah", "Agar tidak terjadi banjir", "Agar airnya bisa diminum", "Agar banyak ikan"], answer: 1 },
+                        { q: "Apa bantuan yang dilakukan anak-anak?", options: ["Menggali selokan", "Mengumpulkan sampah daun kering", "Memasak makanan", "Mengecat dinding"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Manfaat Bersepeda Pagi Hari",
+                    content: "Bersepeda pada pagi hari merupakan olahraga yang menyehatkan jantung dan otot kaki. Selain menyehatkan badan, bersepeda juga ramah lingkungan karena tidak menghasilkan asap polusi. Bayu selalu bersepeda keliling kompleks bersama ayahnya setiap akhir pekan.",
+                    quiz: [
+                        { q: "Anggota tubuh mana yang dilatih kuat saat bersepeda?", options: ["Otot tangan saja", "Jantung dan otot kaki", "Mata dan telinga", "Punggung"], answer: 1 },
+                        { q: "Mengapa bersepeda dikatakan ramah lingkungan?", options: ["Karena harganya murah", "Karena tidak menghasilkan asap polusi", "Karena bentuknya kecil", "Karena tidak bersuara"], answer: 1 },
+                        { q: "Dengan siapa Bayu bersepeda setiap akhir pekan?", options: ["Ibu", "Ayahnya", "Kakek", "Guru"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Kancil dan Burung Hantu yang Bijak",
+                    content: "Di hutan rimba yang lebat, Kancil bingung mencari jalan pulang saat malam hari tiba. Burung Hantu yang bijak terbang hinggap di dahan pohon tinggi. Dengan matanya yang tajam di kegelapan, Burung Hantu menuntun Kancil menyusuri tepi sungai hingga sampai di rumahnya dengan selamat.",
+                    quiz: [
+                        { q: "Mengapa Kancil merasa bingung di dalam hutan?", options: ["Lapar", "Bingung mencari jalan pulang di malam hari", "Dikejar harimau", "Kehilangan makanan"], answer: 1 },
+                        { q: "Hewan apa yang menolong Kancil?", options: ["Gajah", "Burung Hantu", "Monyet", "Serigala"], answer: 1 },
+                        { q: "Petunjuk jalan apa yang digunakan untuk menuntun Kancil?", options: ["Jalan raya", "Menyusuri tepi sungai", "Arah angin", "Jejak kaki"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Panen Padi di Sawah",
+                    content: "Musim panen padi telah tiba di Desa Paranggi. Sawah-sawah membentang luas seperti hamparan permadani kuning keemasan. para petani mengarit padi bersama-sama sambil bersendagurau. Hasil panen padi melimpah dimasukkan ke dalam lumbung sebagai stok pangan desa.",
+                    quiz: [
+                        { q: "Seperti apa pemandangan sawah saat musim panen tiba?", options: ["Hijau legam", "Hamparan permadani kuning keemasan", "Cokelat berlumpur", "Putih bersalju"], answer: 1 },
+                        { q: "Bagaimana cara para petani memotong padi?", options: ["Menggunakan mesin cuci", "Mengarit padi bersama-sama", "Mencabut dengan tangan", "Membakarnya"], answer: 1 },
+                        { q: "Di mana hasil panen padi disimpan?", options: ["Di dalam sumur", "Di dalam lumbung desa", "Di tengah jalan", "Di sungai"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Mengenal Jenis-Jenis Awan",
+                    content: "Awan di langit memiliki bentuk yang berbeda-beda. Awan cumulus berbentuk seperti gumpalan kapas putih yang indah menandakan cuaca cerah. Sedangkan awan nimbus berwarna abu-abu gelap tebal menandakan akan segera turun hujan deras disertai angin.",
+                    quiz: [
+                        { q: "Awan berbentuk gumpalan kapas putih disebut awan apa?", options: ["Awan Stratus", "Awan Cumulus", "Awan Cirrus", "Awan Nimbus"], answer: 1 },
+                        { q: "Awan apakah yang berwarna abu-abu gelap penanda hujan?", options: ["Awan Cumulus", "Awan Nimbus", "Awan Pelangi", "Awan Tipis"], answer: 1 },
+                        { q: "Cuaca apa yang ditandai oleh hadirnya awan cumulus?", options: ["Hujan badai", "Cuaca cerah", "Salju", "Kabut tebal"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Kunjungan ke Museum Daerah",
+                    content: "Siswa kelas tiga pergi membelajarkan diri ke museum daerah. Pemandu museum memperlihatkan kerajinan gerabah, pakaian adat antik, dan mata uang kuno. Para siswa mencatat penjelasan sejarah dengan rapi di buku catatan mereka masing-masing.",
+                    quiz: [
+                        { q: "Ke mana siswa kelas tiga melakukan kunjungan belajar?", options: ["Ke kebun binatang", "Ke museum daerah", "Ke kolam renang", "Ke stasiun kereta"], answer: 1 },
+                        { q: "Benda antik apa saja yang diperlihatkan pemandu?", options: ["Mobil balap dan TV", "Gerabah, pakaian adat, dan uang kuno", "Komputer dan HP", "Sepeda listrik"], answer: 1 },
+                        { q: "Di mana siswa mencatat penjelasan pemandu museum?", options: ["Di meja", "Di buku catatan masing-masing", "Di papan tulis", "Di HP"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Pentingnya Sarapan Pagi Sehat",
+                    content: "Sarapan sebelum berangkat ke sekolah sangat penting bagi anak-anak. Makanan gizi seimbang seperti telur, nasi, dan sayuran memberikan energi bagi otak untuk berpikir. Anak yang rutin sarapan akan lebih fokus dan tidak mudah mengantuk saat menerima pelajaran di kelas.",
+                    quiz: [
+                        { q: "Mengapa sarapan gizi seimbang penting sebelum sekolah?", options: ["Agar terlambat", "Memberi energi bagi otak untuk berpikir", "Agar tidak perlu belajar", "Agar cepat mengantuk"], answer: 1 },
+                        { q: "Sebutkan contoh makanan gizi seimbang dalam bacaan!", options: ["Mie instan dan es krim", "Telur, nasi, dan sayuran", "Permen dan cokelat", "Keripik pedas"], answer: 1 },
+                        { q: "Apa keuntungan anak yang rajin sarapan di kelas?", options: ["Sering tertidur", "Lebih fokus dan tidak mudah mengantuk", "Malas membaca", "Mudah lelah"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Menjaga Kebersihan Sungai",
+                    content: "Sungai yang bersih adalah sumber kehidupan bagi ikan dan tumbuh-tumbuhan air. Warga dilarang keras membuang sampah plastik atau limbah ke aliran sungai. Sungai yang terawat airnya jernih dan dapat dimanfaatkan untuk mengairi sawah-sawah warga.",
+                    quiz: [
+                        { q: "Bagi siapa sungai yang bersih menjadi sumber kehidupan?", options: ["Hanya manusia", "Ikan dan tumbuh-tumbuhan air", "Burung di udara", "Mobil di jalan"], answer: 1 },
+                        { q: "Benda apa yang dilarang keras dibuang ke dalam sungai?", options: ["Air jernih", "Sampah plastik atau limbah", "Batu kali", "Ikan kecil"], answer: 1 },
+                        { q: "Apa manfaat sungai jernih bagi para petani?", options: ["Untuk berenang", "Mengairi sawah-sawah warga", "Tempat cuci mobil", "Menangkap nyamuk"], answer: 1 }
+                    ]
+                }
+            ],
+            4: [
+                {
+                    title: "Kunjungan ke Perpustakaan Daerah",
+                    content: "Siswa kelas empat melakukan kunjungan edukatif ke Perpustakaan Daerah. Di sana mereka disambut oleh pustakawan yang ramah. Petugas menjelaskan tata cara mencari buku menggunakan katalog komputer. Para siswa sangat antusias membaca buku cerita rakyat dan ensiklopedia sains. Mereka belajar bahwa membaca adalah jendela ilmu dunia.",
+                    quiz: [
+                        { q: "Ke mana siswa kelas empat melakukan kunjungan?", options: ["Museum", "Perpustakaan Daerah", "Taman Bunga", "Kebun Binatang"], answer: 1 },
+                        { q: "Bagaimana cara mencari buku menurut penjelasan petugas?", options: ["Bertanya ke teman", "Menggunakan katalog komputer", "Mencari acak", "Melihat sampul"], answer: 1 },
+                        { q: "Pesan utama yang dipelajari siswa adalah?", options: ["Membaca itu membosankan", "Membaca adalah jendela ilmu dunia", "Buku sangat berat", "Perpustakaan sangat sepi"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Keajaiban Daur Air di Bumi",
+                    content: "Air di bumi tidak pernah habis karena mengalami proses daur air secara terus-menerus. Panas matahari menyebabkan air laut dan sungai menguap menjadi uap air (evaporasi). Uap air berkumpul di udara membentuk awan (kondensasi). Ketika awan sudah berat dan dingin, titik-titik air jatuh ke bumi sebagai hujan (presipitasi). Air hujan menyerap ke dalam tanah dan mengalir kembali ke laut.",
+                    quiz: [
+                        { q: "Proses penguapan air laut akibat panas matahari disebut apa?", options: ["Kondensasi", "Evaporasi", "Presipitasi", "Infiltrasi"], answer: 1 },
+                        { q: "Apa yang terjadi saat proses kondensasi berlangsung?", options: ["Air menguap", "Uap air berkumpul membentuk awan", "Hujan turun deras", "Air menyerap ke tanah"], answer: 1 },
+                        { q: "Istilah ilmiah untuk peristiwa turunnya hujan adalah?", options: ["Evaporasi", "Presipitasi", "Sublimasi", "Kondensasi"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Legenda Asal Usul Danau Biru",
+                    content: "Pada zaman dahulu di sebuah lembah subur, hidup seorang pemuda pembuat seruling yang jujur. Ia selalu menolong warga yang membutuhkan air tanpa meminta imbalan. Suatu hari, ia menemukan mata air ajaib di balik bukit. Karena kejujuran dan ketulusan hatinya menjaga mata air tersebut, timbullah danau yang jernih kebiruan yang memberi kesejahteraan bagi seluruh penduduk desa.",
+                    quiz: [
+                        { q: "Apa pekerjaan pemuda jujur dalam cerita tersebut?", options: ["Petani padi", "Pembuat seruling", "Nelayan laut", "Penebang kayu"], answer: 1 },
+                        { q: "Di mana pemuda itu menemukan mata air ajaib?", options: ["Di dalam gua", "Di balik bukit", "Di tengah pasar", "Di pinggir pantai"], answer: 1 },
+                        { q: "Sifat utama apa yang dimiliki pemuda itu sehingga danau kebiruan tercipta?", options: ["Keserakahan", "Kejujuran dan ketulusan hati", "Kecerdikan berbohong", "Keberanian bertarung"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Pemanfaatan Energi Angin",
+                    content: "Energi angin merupakan salah satu sumber energi terbarukan yang tidak akan pernah habis. Kincir angin raksasa atau turbin angin dipasang di daerah terbuka yang berangin kencang. Putaran baling-baling kincir menggerakkan generator untuk menghasilkan energi listrik. Listrik ini dialirkan ke rumah-rumah warga tanpa menghasilkan polusi udara.",
+                    quiz: [
+                        { q: "Mengapa energi angin disebut energi terbarukan?", options: ["Karena harganya mahal", "Karena tidak akan pernah habis", "Karena mudah rusak", "Karena buatan manusia"], answer: 1 },
+                        { q: "Alat apa yang digerakkan oleh baling-baling kincir untuk hasilkan listrik?", options: ["Baterai", "Generator", "Transformator", "Kabel"], answer: 1 },
+                        { q: "Apa keunggulan utama pembangkit listrik tenaga angin?", options: ["Menghasilkan asap", "Tidak menghasilkan polusi udara", "Membutuhkan minyak bumi", "Suaranya sangat bising"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Budidaya Ikan Nila Bioflok",
+                    content: "Pak Maya menerapkan teknik bioflok dalam mengembangbiakkan ikan nila di belakang rumahnya. Teknik ini memanfaatkan mikroorganisme baik untuk mengolah sisa pakan menjadi gumpalan protein kaya nutrisi bagi ikan. Sistem bioflok hemat air dan tempat, serta menghasilkan panen ikan nila yang lebih cepat, sehat, dan berkualitas tinggi.",
+                    quiz: [
+                        { q: "Jenis ikan apa yang dibudidayakan oleh Pak Maya?", options: ["Ikan Gurame", "Ikan Nila", "Ikan Lele", "Ikan Mas"], answer: 1 },
+                        { q: "Bagaimana cara kerja teknologi bioflok?", options: ["Membuang semua air tiap hari", "Mengolah sisa pakan jadi gumpalan protein", "Memberi pakan kimia berbahaya", "Menjemur kolam"], answer: 1 },
+                        { q: "Apa keuntungan budidaya ikan sistem bioflok?", options: ["Boros air", "Hemat air, tempat, dan panen lebih cepat", "Membuat air bau", "Ikan lambat tumbuh"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Upacara Adat Menyambut Panen",
+                    content: "Masyarakat Desa Paranggi rutin menggelar upacara adat sebagai ungkapan syukur atas panen raya yang berhasil. Warga bergotong-royong membuat tumpeng hasil bumi berisi sayuran, buah-buahan, dan nasi kuning. Acara diisi dengan tarian tradisional dan doa bersama, mempererat silaturahmi serta melestarikan warisan leluhur.",
+                    quiz: [
+                        { q: "Apa tujuan masyarakat menggelar upacara adat?", options: ["Ungkapan syukur atas panen raya", "Mencari keagungan", "Memamerkan harta", "Menakutkan penonton"], answer: 0 },
+                        { q: "Makanan khas apa yang dibuat warga secara bergotong-royong?", options: ["Roti tawar", "Tumpeng hasil bumi", "Kue tart", "Pizza"], answer: 1 },
+                        { q: "Nilai positif apa yang diperoleh dari kegiatan upacara adat tersebut?", options: ["Mempererat silaturahmi & lestarikan budaya", "Menimbulkan permusuhan", "Membuang makanan", "Merusak lingkungan"], answer: 0 }
+                    ]
+                },
+                {
+                    title: "Pentingnya Diet Sampah Plastik",
+                    content: "Sampah plastik membutuhkan waktu ratusan tahun untuk terurai di dalam tanah. Jika dibuang sembarangan ke laut, plastik bahayakan penyu dan ikan yang mengira plastik sebagai makanan. Oleh karena itu, siswa diajak melakukan diet plastik dengan selalu membawa botol minum sendiri dan menggunakan kantong belanja dari kain.",
+                    quiz: [
+                        { q: "Berapa lama waktu yang dibutuhkan sampah plastik untuk terurai?", options: ["1 hari", "Beberapa minggu", "Ratusan tahun", "1 bulan"], answer: 2 },
+                        { q: "Mengapa sampah plastik berbahaya bagi hewan laut seperti penyu?", options: ["Penyu suka plastik", "Penyu mengira plastik sebagai makanan", "Plastik membuat air dingin", "Plastik jadi sarang penyu"], answer: 1 },
+                        { q: "Langkah nyata apa yang bisa dilakukan siswa untuk kurangi plastik?", options: ["Membeli botol kemasan tiap hari", "Membawa botol minum sendiri & kantong kain", "Membakar plastik di halaman", "Membuang plastik ke sungai"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Kisah Perjuangan Thomas Edison",
+                    content: "Thomas Alva Edison adalah penemu lampu pijar yang sangat pantang menyerah. Ia pernah mengalami kegagalan ribuan kali sebelum akhirnya berhasil menciptakan lampu listrik yang terang. Edison mengajarkan kita bahwa kegagalan bukanlah akhir dari segalanya, melainkan langkah menuju keberhasilan jika kita terus berusaha keras.",
+                    quiz: [
+                        { q: "Siapa nama tokoh penemu lampu pijar dalam cerita?", options: ["Albert Einstein", "Thomas Alva Edison", "Alexander Graham Bell", "Isaac Newton"], answer: 1 },
+                        { q: "Bagaimana sikap Edison saat mengalami kegagalan dalam percobaannya?", options: ["Langsung menyerah", "Pantang menyerah dan terus berusaha", "Marah-marah", "Berhenti eksperimen"], answer: 1 },
+                        { q: "Pesan moral apa yang dapat dipetik dari perjuangan Edison?", options: ["Jangan pernah mencoba", "Kegagalan adalah langkah menuju keberhasilan", "Hanya belajar saat berhasil", "Berhenti jika sulit"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Mengenal Sistem Tata Surya",
+                    content: "Sistem tata surya kita terdiri dari Matahari sebagai pusatnya dan delapan planet yang mengelilinginya. Bumi adalah planet ketiga dari Matahari dan satu-satunya planet yang diketahui memiliki kehidupan. Planet terbesar dalam tata surya adalah Yupiter, sedangkan Saturnus terkenal dengan cincin indahnya yang terbuat dari es dan debu.",
+                    quiz: [
+                        { q: "Pusat dari sistem tata surya kita adalah?", options: ["Bumi", "Matahari", "Bulan", "Yupiter"], answer: 1 },
+                        { q: "Bumi berada pada urutan ke berapa dari Matahari?", options: ["Kesatu", "Kedua", "Ketiga", "Kelima"], answer: 2 },
+                        { q: "Planet apakah yang memiliki cincin indah terbuat dari es dan debu?", options: ["Mars", "Saturnus", "Venus", "Neptunus"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Gotong Royong Jembatan Desa",
+                    content: "Jembatan kayu tua di atas Sungai Paranggi rusak akibat terjang arus deras. Kepala Desa mengajak seluruh warga bergotong-royong membangun jembatan beton yang lebih kokoh. Para pemuda mengangkut semen dan batu, sementara kaum ibu menyiapkan makanan hangat. Dalam tempo tiga hari, jembatan baru selesai dan bisa dilalui kembali.",
+                    quiz: [
+                        { q: "Mengapa jembatan kayu tua desa mengalami kerusakan?", options: ["Dimakan rayap", "Terjang arus sungai yang deras", "Sengaja dibongkar", "Tertimpa pohon"], answer: 1 },
+                        { q: "Bahan apa yang digunakan untuk membangun jembatan baru yang lebih kokoh?", options: ["Bambu", "Beton", "Kayu lapuk", "Plastik"], answer: 1 },
+                        { q: "Berapa lama waktu yang dibutuhkan warga untuk menyelesaikan jembatan beton?", options: ["1 bulan", "Tiga hari", "Seminggu", "Satu hari"], answer: 1 }
+                    ]
+                }
+            ],
+            5: [
+                {
+                    title: "Teknologi Ramah Lingkungan Panel Surya",
+                    content: "Warga desa mulai memanfaatkan energi panel surya untuk penerangan jalan desa. Alat ini mengubah sinar matahari menjadi energi listrik yang dapat disimpan dalam baterai. Penggunaan panel surya sangat menghemat biaya operasional desa sekaligus mengurangi polusi udara. Para pemuda desa juga dilatih cara merawat komponen panel surya secara berkala.",
+                    quiz: [
+                        { q: "Energi apakah yang dimanfaatkan warga desa?", options: ["Energi angin", "Energi panel surya", "Energi air", "Energi uap"], answer: 1 },
+                        { q: "Bagaimana cara panel surya menghasilkan listrik?", options: ["Mengubah air jadi listrik", "Mengubah sinar matahari", "Menggunakan bahan bakar diesel", "Memutar kincir"], answer: 1 },
+                        { q: "Apa keuntungan utama penggunaan energi ini?", options: ["Menghemat biaya & kurangi polusi", "Membuat jalan gelap", "Menghasilkan asap", "Sangat mahal"], answer: 0 }
+                    ]
+                },
+                {
+                    title: "Sistem Pencernaan Manusia dan Kesehatan",
+                    content: "Proses pencernaan makanan dalam tubuh manusia dimulai dari mulut, di mana makanan dikunyah hingga halus oleh gigi. Makanan kemudian bergerak menuju kerongkongan, lambung, dan usus halus untuk diserap nutrisinya. Mengonsumsi makanan tinggi serat seperti buah, sayur, dan gandum sangat penting untuk menjaga usus tetap sehat serta mencegah gangguan pencernaan.",
+                    quiz: [
+                        { q: "Di manakah proses pencernaan makanan pertama kali dimulai?", options: ["Lambung", "Mulut", "Usus halus", "Kerongkongan"], answer: 1 },
+                        { q: "Di organ manakah penyerapan nutrisi makanan terutama terjadi?", options: ["Kerongkongan", "Usus halus", "Gigi", "Mulut"], answer: 1 },
+                        { q: "Jenis makanan apa yang disarankan untuk jaga kesehatan usus?", options: ["Makanan tinggi lemak", "Makanan tinggi serat (buah & sayur)", "Makanan serba pedas", "Minuman bersoda"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Konservasi Hutan Mangrove Pantai Paranggi",
+                    content: "Siswa kelas lima turut serta dalam program penanaman 500 bibit mangrove di pesisir pantai Paranggi. Hutan mangrove memiliki akar napas yang kuat untuk menahan gelombang laut dari ancaman abrasi pantai. Selain itu, ekosistem mangrove menjadi tempat memijah dan berlindung bagi kepiting, udang, serta ikan-ikan kecil dari predator laut.",
+                    quiz: [
+                        { q: "Berapa bibit mangrove yang ditanam dalam program konservasi tersebut?", options: ["100 bibit", "500 bibit", "1000 bibit", "50 bibit"], answer: 1 },
+                        { q: "Apa fungsi utama akar napas pohon mangrove bagi garis pantai?", options: ["Membuat pantai curam", "Menahan gelombang laut dari abrasi", "Menghasilkan garam", "Menarik pasir"], answer: 1 },
+                        { q: "Hewan apa saja yang memanfaatkan mangrove sebagai tempat memijah?", options: ["Burung elang", "Kepiting, udang, dan ikan kecil", "Kucing laut", "Penyu raksasa"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Peran Organisasi Siswa Sekolah",
+                    content: "Melalui pemilihan ketua kelas dan pengurus majalah dinding, siswa belajar menerapkan nilai-nilai demokrasi sejak dini. Organisasi sekolah menjadi wadah untuk melatih kepemimpinan, menyampaikan pendapat secara sopan, serta menghargai perbedaan pandangan. Kerja tim yang solid dalam organisasi membantu menyukseskan berbagai kegiatan peringatan hari besar di sekolah.",
+                    quiz: [
+                        { q: "Pelajaran penting apa yang didapat siswa dari pemilihan pengurus kelas?", options: ["Cara bertengkar", "Nilai-nilai demokrasi sejak dini", "Trik berbohong", "Cara perintah teman"], answer: 1 },
+                        { q: "Sikap apa yang dilatih ketika menyampaikan gagasan dalam organisasi?", options: ["Sopan dan menghargai pendapat lain", "Egois dan marah", "Apatis", "Acuh tak acuh"], answer: 0 },
+                        { q: "Manfaat dari kerja tim yang solid dalam organisasi adalah?", options: ["Menyebabkan bentrok", "Menyukseskan kegiatan sekolah", "Membuat lelah", "Menghabiskan dana"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Perjuangan Ki Hajar Dewantara",
+                    content: "Ki Hajar Dewantara adalah pahlawan nasional yang dikenal sebagai Bapak Pendidikan Nasional Indonesia. Beliau mendirikan perguruan Taman Siswa untuk memberikan kesempatan belajar bagi rakyat pribumi pada masa penjajahan. Semboyan beliau yang terkenal, 'Ing Ngarso Sung Tulodo, Ing Madyo Mangun Karso, Tut Wuri Handayani', menjadi pedoman utama dunia pendidikan Indonesia hingga kini.",
+                    quiz: [
+                        { q: "Siapa julukan bagi Ki Hajar Dewantara dalam sejarah Indonesia?", options: ["Bapak Proklamator", "Bapak Pendidikan Nasional", "Bapak Pembangunan", "Bapak Koperasi"], answer: 1 },
+                        { q: "Perguruan apa yang didirikan beliau untuk rakyat pribumi?", options: ["Taman Siswa", "STOVIA", "Muhammadiyah", "Budi Utomo"], answer: 0 },
+                        { q: "Arti dari semboyan 'Tut Wuri Handayani' adalah?", options: ["Di depan memberi contoh", "Dari belakang memberikan dorongan", "Di tengah membangun semangat", "Di depan memimpin rapat"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Fenomena Gerhana Bulan Total",
+                    content: "Gerhana Bulan Total terjadi ketika posisi Matahari, Bumi, dan Bulan berada pada satu garis lurus sempurna. Bumi berada di tengah sehingga bayangan umbra Bumi menutup seluruh permukaan Bulan. Saat puncaknya, Bulan tidak menjadi gelap gulita, melainkan berwarna kemerahan akibat pembiasan sinar matahari oleh atmosfer Bumi.",
+                    quiz: [
+                        { q: "Bagaimana posisi Bumi saat terjadi gerhana bulan total?", options: ["Di balik Matahari", "Berada di antara Matahari dan Bulan", "Di samping Bulan", "Di luar tata surya"], answer: 1 },
+                        { q: "Bagaimanakah warna penampakan Bulan saat puncak gerhana total?", options: ["Hitam pekat", "Berwarna kemerahan", "Hijau terang", "Kuning mengkilap"], answer: 1 },
+                        { q: "Fenomena pembiasan sinar oleh apa yang menyebabkan warna kemerahan tersebut?", options: ["Atmosfer Bumi", "Awan mendung", "Air laut", "Cermin bulan"], answer: 0 }
+                    ]
+                },
+                {
+                    title: "Pertanian Organik Bebas Pestisida",
+                    content: "Pak Rudi beralih dari pertanian konvensional ke pertanian organik demi menjaga kelestarian tanah. Beliau membuat pupuk kompos alami dari sisa sayuran dan kotoran ternak. Untuk membasmi hama tanaman, Pak Rudi menggunakan pestisida nabati dari ekstrak daun mimba dan serai. Hasil panen sayur organik terbukti lebih sehat dan bernilai jual tinggi.",
+                    quiz: [
+                        { q: "Mengapa Pak Rudi beralih ke sistem pertanian organik?", options: ["Ingin cepat kaya", "Menjaga kelestarian tanah", "Karena tidak punya alat", "Disuruh tetangga"], answer: 1 },
+                        { q: "Dari bahan apa pupuk kompos alami buatan Pak Rudi berasal?", options: ["Plastik bekas", "Sisa sayuran dan kotoran ternak", "Bahan kimia sintesis", "Oli bekas"], answer: 1 },
+                        { q: "Bahan alami apa yang digunakan sebagai pestisida nabati?", options: ["Bensin", "Ekstrak daun mimba dan serai", "Air sabun mandi", "Cuka masakan"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Batik Warisan Budaya Dunia",
+                    content: "Batik adalah seni melukis kain menggunakan malam (lilin khusus) dan canting yang memiliki makna filosofis tinggi. Setiap daerah di Indonesia memiliki motif batik khas, seperti motif mega mendung dari Cirebon atau motif parang dari Jawa. UNESCO telah mengukuhkan batik Indonesia sebagai Masterpiece of Oral and Intangible Heritage of Humanity sejak tahun 2009.",
+                    quiz: [
+                        { q: "Alat khas apa yang digunakan untuk menggoreskan malam pada kain batik?", options: ["Kuas minyak", "Canting", "Pensil warna", "Spidol"], answer: 1 },
+                        { q: "Motif batik Mega Mendung berasal dari daerah mana?", options: ["Solo", "Cirebon", "Yogyakarta", "Pekalongan"], answer: 1 },
+                        { q: "Tahun berapakah UNESCO mengukuhkan batik Indonesia sebagai warisan dunia?", options: ["2005", "2009", "2012", "2015"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Bijak Menggunakan Internet",
+                    content: "Perkembangan teknologi internet membawa banyak kemudahan bagi siswa untuk mengakses informasi pelajaran dan buku digital. Namun, siswa dituntut bijak mengatur waktu layar agar tidak kecanduan game online. Selain itu, siswa harus menjaga kerahasiaan data pribadi serta tidak mudah membagikan berita yang belum pasti kebenarannya di media sosial.",
+                    quiz: [
+                        { q: "Manfaat positif internet bagi pelajar adalah?", options: ["Bisa main game seharian", "Akses informasi pelajaran & buku digital", "Bisa lupa waktu", "Meniru hal buruk"], answer: 1 },
+                        { q: "Sikap bijak apa yang harus diambil terkait berita di media sosial?", options: ["Langsung bagikan", "Tidak mudah bagikan berita yang belum pasti", "Membuat berita bohong", "Marah-marah di komen"], answer: 1 },
+                        { q: "Mengapa kita harus membatasi waktu layar (screen time)?", options: ["Agar baterai tidak habis", "Mencegah kecanduan & menjaga kesehatan", "Agar tidak disuruh belajar", "Agar bisa tidur cepat"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Melestarikan Satwa Endemik Indonesia",
+                    content: "Indonesia kaya akan satwa endemik unik yang tidak ditemukan di belahan bumi lain. Contohnya adalah Komodo di Nusa Tenggara Timur, Orangutan di Kalimantan, dan Anoa di Sulawesi. Kerusakan hutan dan perburuan liar menjadi ancaman utama kelestarian mereka. Pemerintah mendirikan taman nasional untuk melindungi habitat alami satwa-satwa langka ini.",
+                    quiz: [
+                        { q: "Di provinsi manakah habitat alami habitat Komodo berada?", options: ["Papua", "Nusa Tenggara Timur", "Sumatera Utara", "Bali"], answer: 1 },
+                        { q: "Satwa endemik Anoa berasal dari pulau mana?", options: ["Jawa", "Sulawesi", "Kalimantan", "Maluku"], answer: 1 },
+                        { q: "Upaya apa yang dilakukan pemerintah untuk melindungi satwa langka?", options: ["Mendirikan taman nasional", "Menjual ke luar negeri", "Membiarkan perburuan", "Menebang hutan"], answer: 0 }
+                    ]
+                }
+            ],
+            6: [
+                {
+                    title: "Inovasi Daur Ulang Sampah Plastik Hydroponik",
+                    content: "Permasalahan sampah plastik di ekosistem laut menjadi perhatian global yang mendesak. Siswa kelas enam mempelopori gerakan memilah sampah organik dan anorganik di lingkungan sekolah. Sampah plastik bekas botol minuman diolah menjadi kerajinan pot tanaman hidroponik yang bernilai estetika dan ekonomi. Kegiatan inovatif ini berhasil mengurangi volume sampah sekolah secara signifikan.",
+                    quiz: [
+                        { q: "Permasalahan apa yang menjadi perhatian global?", options: ["Sampah plastik laut", "Penebangan pohon", "Polusi suara", "Banjir sungai"], answer: 0 },
+                        { q: "Sampah botol plastik diolah menjadi barang apa?", options: ["Mainan kayu", "Pot tanaman hidroponik", "Tas kain", "Sapu lidi"], answer: 1 },
+                        { q: "Apa hasil dari gerakan inovatif siswa tersebut?", options: ["Sampah makin menumpuk", "Mengurangi volume sampah secara signifikan", "Sekolah menjadi kotor", "Siswa menjadi malas"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Eksplorasi Energi Terbarukan Geothermal",
+                    content: "Indonesia memiliki potensi energi panas bumi (geothermal) terbesar di dunia karena berada dalam jalur cincin api (ring of fire). Pembangkit Listrik Tenaga Panas Bumi memanfaatkan uap panas alami dari dalam perut bumi untuk memutar turbin generator listrik. Energi geothermal ramah lingkungan karena emisi karbonnya sangat rendah dan tersedia secara berkelanjutan sepanjang tahun.",
+                    quiz: [
+                        { q: "Mengapa Indonesia memiliki potensi panas bumi yang sangat besar?", options: ["Banyak sungai besar", "Berada dalam jalur cincin api (ring of fire)", "Memiliki lautan luas", "Beriklim tropis"], answer: 1 },
+                        { q: "Fluida apa dari perut bumi yang dimanfaatkan memutar turbin listrik?", options: ["Minyak mentah", "Uap panas alami", "Gas beracun", "Lava pijar"], answer: 1 },
+                        { q: "Apa keunggulan utama energi geothermal bagi lingkungan?", options: ["Menghasilkan limbah beracun", "Emisi karbon sangat rendah & berkelanjutan", "Membuat tanah kering", "Prosesnya bising"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Pentingnya Literasi Digital di Era Informasi",
+                    content: "Di era melimpahnya informasi digital, kemampuan berpikir kritis menjadi kunci utama agar tidak terjebak berita bohong (hoax). Siswa diajarkan memverifikasi kebenaran informasi melalui sumber terpercaya sebelum mempercayainya. Prinsip 'Saring Sebelum Sharing' harus dipegang teguh saat menggunakan media sosial guna menciptakan iklim komunikasi digital yang sehat dan produktif.",
+                    quiz: [
+                        { q: "Kemampuan utama apa yang diperlukan di era banjir informasi digital?", options: ["Berpikir kritis", "Mengetik cepat", "Membeli smartphone mahal", "Membuat postingan viral"], answer: 0 },
+                        { q: "Bagaimana cara agar kita tidak mudah percaya berita hoax?", options: ["Langsung percaya", "Memverifikasi dari sumber terpercaya", "Membagikan ke grup", "Mengejek penulisnya"], answer: 1 },
+                        { q: "Slogan penting apa yang harus dipegang saat menggunakan media sosial?", options: ["Ketik Dulu Baru Pikir", "Saring Sebelum Sharing", "Bagikan Sebanyak Mungkin", "Baca Sampul Saja"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Keanekaragaman Hayati Terumbu Karang Nusantara",
+                    content: "Indonesia merupakan bagian dari kawasan Segitiga Terumbu Karang dunia yang memiliki keanekaragaman hayati laut tertinggi. Terumbu karang bukan sekadar batuan hiasan, melainkan hewan laut yang membentuk rumah bagi ribuan spesies ikan dan pelindung pantai. Penangkapan ikan menggunakan bahan peledak dapat merusak terumbu karang yang membutuhkan puluhan tahun untuk tumbuh kembali.",
+                    quiz: [
+                        { q: "Kawasan laut Indonesia masuk ke dalam wilayah dunia apa?", options: ["Segitiga Bermudasa", "Segitiga Terumbu Karang", "Palung Mariana", "Samudra Pasifik Tengah"], answer: 1 },
+                        { q: "Apakah terumbu karang itu menurut fakta sains?", options: ["Tumbuhan air biasa", "Hewan laut pembentuk ekosistem", "Batu karang mati", "Sampah laut"], answer: 1 },
+                        { q: "Tindakan merusak apa yang sangat dilarang dalam menangkap ikan?", options: ["Menggunakan pancingan kayu", "Menggunakan bahan peledak", "Menggunakan jaring tradisional", "Menyelam manual"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Sejarah Perumusan Naskah Proklamasi",
+                    content: "Perumusan naskah Proklamasi Kemerdekaan Indonesia berlangsung dramatis pada malam tanggal 16 Agustus 1945 di rumah Laksamana Maeda. Ir. Soekarno, Drs. Mohammad Hatta, dan Mr. Ahmad Soebardjo merumuskan kalimat proklamasi dengan penuh ketelitian. Naskah tersebut kemudian diketik ulang oleh Sayuti Melik sebelum ditandatangani dan dibacakan pada 17 Agustus 1945.",
+                    quiz: [
+                        { q: "Di rumah siapakah naskah proklamasi dirumuskan?", options: ["Ir. Soekarno", "Laksamana Maeda", "Mohammad Hatta", "Ki Hajar Dewantara"], answer: 1 },
+                        { q: "Siapakah tokoh yang mengetik ulang naskah proklamasi?", options: ["Ahmad Soebardjo", "Sayuti Melik", "Sukarni", "Sutan Sjahrir"], answer: 1 },
+                        { q: "Tanggal berapakah naskah proklamasi dibacakan secara bersejarah?", options: ["10 November 1945", "17 Agustus 1945", "28 Oktober 1928", "1 Juni 1945"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Kecerdasan Buatan dalam Pembelajaran",
+                    content: "Teknologi Kecerdasan Buatan (Artificial Intelligence) kini berkembang pesat membantu dunia pendidikan. Aplikasi belajar berbasis AI dapat menganalisis gaya belajar siswa dan memberikan latihan soal yang disesuaikan dengan tingkat pemahamannya. Meskipun canggih, AI tidak dapat menggantikan peran guru dalam memberikan dorongan moral, empati, serta pembentukan karakter siswa.",
+                    quiz: [
+                        { q: "Bagaimana AI membantu proses pembelajaran siswa secara personal?", options: ["Mengerjakan tugas otomatis", "Menganalisis gaya belajar & beri latihan sesuai", "Menggantikan peran orang tua", "Menghapus ujian"], answer: 1 },
+                        { q: "Peran vital apa dari guru yang TIDAK dapat digantikan oleh teknologi AI?", options: ["Menghitung nilai", "Memberi dorongan moral, empati, & karakter", "Menyimpan file data", "Mencetak kertas"], answer: 1 },
+                        { q: "Sikap terbaik dalam menyikapi kemajuan AI adalah?", options: ["Menolak teknologi", "Memanfaatkan secara bijak sebagai alat bantu", "Ketergantungan penuh", "Acuh tak acuh"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Ketahanan Pangan dan Diversifikasi Kuliner",
+                    content: "Ketahanan pangan nasional tidak hanya bergantung pada beras sebagai makanan pokok tunggal. Indonesia kaya akan bahan pangan lokal karbohidrat lain seperti singkong, jagung, talas, dan sagu. Diversifikasi pangan lokal bermanfaat menjaga stabilitas gizi masyarakat sekaligus mengurangi ketergantungan pada impor gandum atau beras luar negeri.",
+                    quiz: [
+                        { q: "Apakah yang dimaksud dengan diversifikasi pangan?", options: ["Hanya makan beras", "Penganekaragaman bahan makanan pokok", "Menjual beras murah", "Mengimpor beras terus"], answer: 1 },
+                        { q: "Sebutkan bahan pangan lokal karbohidrat pengganti beras!", options: ["Daging dan telur", "Singkong, jagung, talas, dan sagu", "Bayam dan wortel", "Kue tart"], answer: 1 },
+                        { q: "Apa manfaat dari menerapkan diversifikasi pangan lokal?", options: ["Membuat kelaparan", "Kurangi ketergantungan impor & jaga ketahanan pangan", "Meningkatkan impor", "Merusak pencernaan"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Dampak Perubahan Iklim Global",
+                    content: "Perubahan iklim global memicu pemanasan suhu bumi akibat meningkatnya gas rumah kaca dari polusi industri dan kendaraan. Dampaknya dirasakan melalui cuaca ekstrem yang sulit diprediksi, mencairnya es kutub, hingga naiknya permukaan air laut. Langkah mitigasi dapat dilakukan dengan gerakan penanaman sejuta pohon dan penghematan penggunaan energi listrik.",
+                    quiz: [
+                        { q: "Penyebab utama pemanasan suhu bumi global adalah?", options: ["Cahaya bulan", "Peningkatan gas rumah kaca & polusi", "Penggunaan kompor minyak", "Sinar matahari malam"], answer: 1 },
+                        { q: "Berikut ini adalah dampak dari perubahan iklim global, KECUALI?", options: ["Cuaca ekstrem", "Mencairnya es kutub", "Naiknya permukaan laut", "Tanah semakin dingin"], answer: 3 },
+                        { q: "Tindakan mitigasi nyata untuk kurangi dampak iklim adalah?", options: ["Menebang pohon", "Penanaman sejuta pohon & hemat energi", "Membakar sampah plastik", "Menyediakan plastik"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Prinsip Kerja Satelit Komunikasi",
+                    content: "Satelit komunikasi meluncur di orbit geostasioner bumi pada ketinggian sekitar 35.786 kilometer di atas permukaan laut. Satelit berfungsi menerima sinyal gelombang radio dari stasiun bumi, memperkuat sinyal tersebut, dan memancarkannya kembali ke daerah lain. Berkat satelit, masyarakat di pelosok Nusantara dapat menikmati siaran televisi, telepon, dan koneksi internet.",
+                    quiz: [
+                        { q: "Di lintasan manakah satelit komunikasi mengorbit bumi?", options: ["Orbit Kutub", "Orbit Geostasioner", "Orbit Bulan", "Atmosfer bawah"], answer: 1 },
+                        { q: "Bagaimana cara kerja utama satelit komunikasi dalam memproses sinyal?", options: ["Merekam video", "Menerima, memperkuat, dan memancarkan sinyal radio", "Menghasilkan listrik", "Membuat cuaca hujan"], answer: 1 },
+                        { q: "Manfaat langsung satelit bagi warga di daerah pelosok adalah?", options: ["Bisa terbang", "Menikmati siaran TV, telepon, & internet", "Melihat bintang dekat", "Membuat jalan tol"], answer: 1 }
+                    ]
+                },
+                {
+                    title: "Wirausaha Muda Berbasis Ekonomi Kreatif",
+                    content: "Di Desa Paranggi, sekelompok remaja memanfaatkan serat pelepah pisang yang terbakar menjadi kerajinan tempat tisu dan tempat pensil bernilai seni tinggi. Mereka memasarkan produk unik tersebut melalui toko daring ke berbagai kota di Indonesia. Kegiatan kewirausahaan kreatif ini berhasil menciptakan lapangan kerja baru sekaligus mengedukasi warga memanfaatkan limbah alam sekitar.",
+                    quiz: [
+                        { q: "Bahan limbah alam apa yang dimanfaatkan remaja Desa Paranggi?", options: ["Botol kaca", "Serat pelepah pisang", "Kain sintetis", "Baja ringan"], answer: 1 },
+                        { q: "Produk kerajinan apa yang dihasilkan dari serat tersebut?", options: ["Tempat tisu dan tempat pensil", "Sepeda motor", "Pakaian besi", "Sepatu karet"], answer: 0 },
+                        { q: "Manfaat ekonomi kreatif yang dirasakan oleh warga desa adalah?", options: ["Menciptakan lapangan kerja baru & manfaatkan limbah", "Menambah sampah desa", "Membuat warga malas", "Menutup usaha lokal"], answer: 0 }
+                    ]
+                }
+            ]
+        };
+
+        function autoExpandStories() {
+            for (let g = 1; g <= 6; g++) {
+                if (!STORY_BANK[g]) STORY_BANK[g] = [];
+                // If bank has fewer than 10 stories, ensure we don't break, but bank already contains 10 rich stories!
+            }
+        }
+        autoExpandStories();
+
+        /* ==================== INITIALIZATION & TABS ==================== */
+        window.addEventListener('DOMContentLoaded', () => {
+            renderLogoUI();
+            renderSchoolIdentityUI();
+            renderTeacherForm();
+            updateSpinnerList();
+            drawWheel();
+            renderStudentTable();
+            renderHistoryTable();
+            initIceBreakingPlaylist();
+            updateStats();
+        });
+
+        /* ==================== SCHOOL IDENTITY & LOGO MANAGEMENT ==================== */
+        function renderLogoUI() {
+            const headerContainer = document.getElementById('headerLogoContainer');
+            const previewBox = document.getElementById('logoPreviewBox');
+            const printContainer = document.getElementById('printLogoContainer');
+
+            const defaultIconHtml = `<i class="fa-solid font-bold text-yellow-300 text-2xl fa-book-open-reader"></i>`;
+            const defaultPrintIconHtml = `<i class="fa-solid fa-book-open-reader text-4xl text-slate-800"></i>`;
+
+            if (schoolLogo) {
+                if (headerContainer) {
+                    headerContainer.innerHTML = `<img src="${schoolLogo}" alt="Logo Sekolah" class="w-full h-full object-contain">`;
+                }
+                if (previewBox) {
+                    previewBox.innerHTML = `<img src="${schoolLogo}" alt="Logo Preview" class="w-full h-full object-contain p-1">`;
+                }
+                if (printContainer) {
+                    printContainer.innerHTML = `<img src="${schoolLogo}" alt="Logo Sekolah" class="max-w-full max-h-16 object-contain">`;
+                }
+            } else {
+                if (headerContainer) {
+                    headerContainer.innerHTML = defaultIconHtml;
+                }
+                if (previewBox) {
+                    previewBox.innerHTML = `
+                        <i class="fa-solid fa-school text-slate-400 text-2xl mb-1"></i>
+                        <span class="text-[10px] text-slate-400 font-semibold">Logo Default</span>
+                    `;
+                }
+                if (printContainer) {
+                    printContainer.innerHTML = defaultPrintIconHtml;
+                }
+            }
+        }
+
+        function renderSchoolIdentityUI() {
+            const headerSchoolNameEl = document.getElementById('headerSchoolName');
+            const printSchoolNameEl = document.getElementById('printSchoolName');
+            const schoolNameInput = document.getElementById('schoolNameInput');
+            const signLocationInput = document.getElementById('signLocationInput');
+
+            if (headerSchoolNameEl) headerSchoolNameEl.innerText = schoolName;
+            if (printSchoolNameEl) printSchoolNameEl.innerText = schoolName;
+            if (schoolNameInput) schoolNameInput.value = schoolName;
+            if (signLocationInput) signLocationInput.value = signLocation;
+        }
+
+        function saveSchoolIdentity(e) {
+            if (e) e.preventDefault();
+            const nameVal = document.getElementById('schoolNameInput').value.trim();
+            const locVal = document.getElementById('signLocationInput').value.trim();
+
+            if (!nameVal || !locVal) {
+                showToast('Nama sekolah dan tempat tanda tangan tidak boleh kosong!', 'warning');
+                return;
+            }
+
+            schoolName = nameVal;
+            signLocation = locVal;
+
+            localStorage.setItem(STORAGE_SCHOOL_NAME, schoolName);
+            localStorage.setItem(STORAGE_SIGN_LOCATION, signLocation);
+
+            renderSchoolIdentityUI();
+            showToast('Nama Sekolah & Tempat Tanda Tangan berhasil disimpan!', 'success');
+        }
+
+        function handleLogoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showToast('Berkas harus berupa gambar (PNG, JPG, SVG)!', 'error');
+                return;
+            }
+
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('Ukuran berkas logo maksimal 2MB!', 'warning');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                schoolLogo = evt.target.result;
+                localStorage.setItem(STORAGE_LOGO, schoolLogo);
+                renderLogoUI();
+                showToast('Logo sekolah berhasil diperbarui!', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetSchoolLogo() {
+            showConfirmModal(
+                'Reset Logo Sekolah',
+                'Apakah Anda yakin ingin mengembalikan logo ke tampilan bawaan?',
+                () => {
+                    localStorage.removeItem(STORAGE_LOGO);
+                    schoolLogo = null;
+                    renderLogoUI();
+                    showToast('Logo sekolah dikembalikan ke tampilan awal.', 'info');
+                }
+            );
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(el => {
+                el.classList.remove('text-brand-600', 'border-brand-600', 'border-b-2');
+                el.classList.add('text-slate-500', 'border-transparent');
+            });
+
+            const selectedContent = document.getElementById(`section-${tabId}`);
+            const selectedTab = document.getElementById(`tab-${tabId}`);
+
+            if (selectedContent) selectedContent.classList.remove('hidden');
+            if (selectedTab) {
+                selectedTab.classList.add('text-brand-600', 'border-brand-600', 'border-b-2');
+                selectedTab.classList.remove('text-slate-500', 'border-transparent');
+            }
+
+            if (tabId === 'spinner') {
+                updateSpinnerList();
+                drawWheel();
+            }
+        }
+
+        /* ==================== SPINNER WHEEL LOGIC ==================== */
+        let wheelAngle = 0;
+        let isSpinning = false;
+
+        function getFilteredActiveStudents() {
+            const filterGrade = document.getElementById('spinnerGradeFilter').value;
+            return students.filter(s => {
+                const matchGrade = (filterGrade === 'ALL' || s.grade.toString() === filterGrade);
+                return matchGrade && (s.isActive !== false);
+            });
+        }
+
+        function updateSpinnerList() {
+            const listContainer = document.getElementById('spinnerStudentsContainer');
+            const activeBadge = document.getElementById('activeCountBadge');
+            const filtered = getFilteredActiveStudents();
+
+            activeBadge.innerText = `${filtered.length} Siswa Aktif`;
+            listContainer.innerHTML = '';
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-6 text-slate-400 text-xs">
+                        <i class="fa-solid fa-users-slash text-xl mb-1 block"></i>
+                        Tidak ada siswa aktif. Klik "Reset Siswa" atau ganti filter.
+                    </div>`;
+                drawWheel();
+                return;
+            }
+
+            filtered.forEach(student => {
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200 text-xs";
+                div.innerHTML = `
+                    <span class="font-bold text-slate-700">${student.name}</span>
+                    <span class="bg-brand-100 text-brand-700 px-2 py-0.5 rounded font-extrabold text-[10px]">Kelas ${student.grade}</span>
+                `;
+                listContainer.appendChild(div);
+            });
+
+            drawWheel();
+        }
+
+        function drawWheel() {
+            const canvas = document.getElementById('wheelCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const filtered = getFilteredActiveStudents();
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = width / 2 - 15;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (filtered.length === 0) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#334155';
+                ctx.fill();
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Tidak ada siswa aktif', centerX, centerY);
+                return;
+            }
+
+            const arcSize = (Math.PI * 2) / filtered.length;
+            const colors = ['#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#3b82f6', '#14b8a6', '#f97316'];
+
+            filtered.forEach((student, i) => {
+                const angle = wheelAngle + i * arcSize;
+
+                // Segment Slice
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle, angle + arcSize);
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // Text
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + arcSize / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 13px sans-serif';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(student.name.substring(0, 16), radius - 20, 5);
+                ctx.restore();
+            });
+
+            // Center Pin
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 25, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#0f172a';
+            ctx.stroke();
+
+            ctx.fillStyle = '#0284c7';
+            ctx.font = 'black 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('SD', centerX, centerY + 4);
+        }
+
+        function spinWheel() {
+            if (isSpinning) return;
+            const filtered = getFilteredActiveStudents();
+            if (filtered.length === 0) {
+                showToast('Tidak ada siswa aktif pada filter ini! Silakan reset siswa.', 'warning');
+                return;
+            }
+
+            isSpinning = true;
+            document.getElementById('spinBtn').disabled = true;
+
+            const spinDuration = 3800;
+            const start = performance.now();
+            const totalRadianRotation = (Math.PI * 2 * 5) + Math.random() * (Math.PI * 2);
+            const initialAngle = wheelAngle;
+
+            let lastTickRadian = wheelAngle;
+            const arcSize = (Math.PI * 2) / filtered.length;
+
+            function animate(now) {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / spinDuration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+
+                wheelAngle = initialAngle + totalRadianRotation * easeOut;
+                drawWheel();
+
+                if (wheelAngle - lastTickRadian >= arcSize / 2) {
+                    playTickSound();
+                    lastTickRadian = wheelAngle;
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    isSpinning = false;
+                    document.getElementById('spinBtn').disabled = false;
+                    playWinSound();
+
+                    const normalizedAngle = (Math.PI * 2 - (wheelAngle % (Math.PI * 2))) % (Math.PI * 2);
+                    const pointerAngle = (normalizedAngle + (Math.PI * 3 / 2)) % (Math.PI * 2);
+                    const winnerIndex = Math.floor(pointerAngle / arcSize) % filtered.length;
+                    const winner = filtered[winnerIndex];
+
+                    if (typeof confetti === 'function') {
+                        confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+                    }
+
+                    speakIndonesian(`Giliran membaca: ${winner.name}, Kelas ${winner.grade}!`);
+
+                    document.getElementById('spinnerText').innerHTML = `
+                        🎉 Siswa Terpilih: <strong class="text-yellow-300 text-lg">${winner.name}</strong> (Kelas ${winner.grade})! Memulai modul membaca...
+                    `;
+
+                    setTimeout(() => {
+                        selectStudentForReading(winner);
+                    }, 2200);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function resetAllStudentStatus() {
+            students.forEach(s => s.isActive = true);
+            saveStudentsToStorage();
+            updateSpinnerList();
+            showToast('Semua status keaktifan siswa telah direset!', 'success');
+        }
+
+        /* ==================== READING MODULE LOGIC ==================== */
+        function selectStudentForReading(student) {
+            currentActiveStudent = student;
+            document.getElementById('activeStudentBadge').classList.remove('hidden');
+            document.getElementById('activeStudentBadgeName').innerText = student.name;
+
+            document.getElementById('readingStudentName').innerText = student.name;
+            document.getElementById('readingStudentGrade').innerText = `Kelas: ${student.grade} SD | Standard Target: ${KPM_TARGETS[student.grade]} KPM`;
+
+            switchTab('reading');
+            loadStoryForGrade(student.grade);
+        }
+
+        function loadStoryForGrade(grade) {
+            resetTimer();
+
+            const bank = STORY_BANK[grade] || STORY_BANK[2];
+            const randomIndex = Math.floor(Math.random() * bank.length);
+            currentReadingStory = bank[randomIndex];
+
+            const g1Container = document.getElementById('grade1ModuleContainer');
+            const g26Container = document.getElementById('grade26ModuleContainer');
+
+            if (grade === 1) {
+                g1Container.classList.remove('hidden');
+                g26Container.classList.add('hidden');
+                switchGrade1Subtab('ejaan');
+            } else {
+                g1Container.classList.add('hidden');
+                g26Container.classList.remove('hidden');
+
+                document.getElementById('storyGradeBadge').innerText = `Kelas ${grade} SD (Target Standard: ${KPM_TARGETS[grade]} KPM)`;
+                document.getElementById('storyTitle').innerText = currentReadingStory.title;
+                document.getElementById('storyTextArea').innerText = currentReadingStory.content;
+                document.getElementById('storyTextArea').style.fontSize = `${currentFontSize}px`;
+            }
+        }
+
+        function randomizeCurrentGradeStory() {
+            if (!currentActiveStudent) {
+                showToast('Pilih siswa terlebih dahulu dari Roda Acak!', 'warning');
+                return;
+            }
+            loadStoryForGrade(currentActiveStudent.grade);
+        }
+
+        function switchGrade1Subtab(type) {
+            document.querySelectorAll('.subtab-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-600', 'text-white');
+                btn.classList.add('bg-slate-100', 'text-slate-600');
+            });
+            const selectedBtn = document.getElementById(`subtab-${type}`);
+            if (selectedBtn) {
+                selectedBtn.classList.add('bg-brand-600', 'text-white');
+                selectedBtn.classList.remove('bg-slate-100', 'text-slate-600');
+            }
+
+            const box = document.getElementById('g1-content-box');
+            box.innerHTML = '';
+
+            const item = STORY_BANK[1].find(i => i.subType === type) || STORY_BANK[1][0];
+            currentReadingStory = item;
+
+            if (type === 'ejaan') {
+                box.innerHTML = `
+                    <div class="space-y-4">
+                        <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full uppercase">Latihan Modul Ejaan</span>
+                        <div class="text-3xl font-extrabold text-brand-700 tracking-wider leading-relaxed">${item.content}</div>
+                    </div>
+                `;
+            } else if (type === 'sukukata') {
+                let html = '<div class="text-4xl font-black tracking-widest flex flex-wrap justify-center gap-2">';
+                if (Array.isArray(item.content)) {
+                    item.content.forEach(s => {
+                        html += `<span class="${s.color} bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">${s.text}</span>`;
+                    });
+                } else {
+                    html += `<span class="text-brand-700">${item.content}</span>`;
+                }
+                html += '</div>';
+                box.innerHTML = html;
+            } else if (type === 'katapendek') {
+                box.innerHTML = `
+                    <div class="text-3xl font-extrabold text-slate-800 space-x-4 leading-loose">
+                        ${item.content}
+                    </div>
+                `;
+            } else {
+                box.innerHTML = `
+                    <div class="text-2xl font-bold text-slate-700 leading-relaxed max-w-xl">
+                        "${item.content}"
+                    </div>
+                `;
+            }
+        }
+
+        function adjustFontSize(delta) {
+            currentFontSize = Math.max(14, Math.min(32, currentFontSize + delta));
+            const area = document.getElementById('storyTextArea');
+            if (area) area.style.fontSize = `${currentFontSize}px`;
+        }
+
+        /* ==================== TIMER & READING SESSION ==================== */
+        function startReadingTimer() {
+            if (!currentActiveStudent) {
+                showToast('Silakan pilih siswa dari menu Roda Acak terlebih dahulu!', 'info');
+                return;
+            }
+            if (isReadingActive) return;
+
+            isReadingActive = true;
+            readingSecondsElapsed = 0;
+            document.getElementById('startReadingBtn').disabled = true;
+            document.getElementById('finishReadingBtn').disabled = false;
+
+            readingTimerInterval = setInterval(() => {
+                readingSecondsElapsed++;
+                const mins = String(Math.floor(readingSecondsElapsed / 60)).padStart(2, '0');
+                const secs = String(readingSecondsElapsed % 60).padStart(2, '0');
+                document.getElementById('readingTimer').innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function resetTimer() {
+            clearInterval(readingTimerInterval);
+            isReadingActive = false;
+            readingSecondsElapsed = 0;
+            document.getElementById('readingTimer').innerText = '00:00';
+            document.getElementById('startReadingBtn').disabled = false;
+            document.getElementById('finishReadingBtn').disabled = true;
+        }
+
+        function finishReadingSession() {
+            if (!isReadingActive) return;
+            clearInterval(readingTimerInterval);
+            isReadingActive = false;
+
+            openQuizModal();
+        }
+
+        /* ==================== QUIZ & AUTOMATIC FLOW ==================== */
+        function openQuizModal() {
+            const modal = document.getElementById('quizModal');
+            const container = document.getElementById('quizQuestionsContainer');
+            document.getElementById('quizStudentInfo').innerText = `Siswa: ${currentActiveStudent.name} (Kelas ${currentActiveStudent.grade})`;
+
+            container.innerHTML = '';
+            const questions = currentReadingStory.quiz;
+
+            questions.forEach((qObj, idx) => {
+                let optionsHtml = '';
+                qObj.options.forEach((opt, optIdx) => {
+                    optionsHtml += `
+                        <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input type="radio" name="q_${idx}" value="${optIdx}" required class="w-4 h-4 text-brand-600 focus:ring-brand-500">
+                            <span>${opt}</span>
+                        </label>
+                    `;
+                });
+
+                container.innerHTML += `
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                        <p class="font-bold text-sm text-slate-800">${idx + 1}. ${qObj.q}</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            ${optionsHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function submitQuizAndFinish(e) {
+            e.preventDefault();
+
+            const questions = currentReadingStory.quiz;
+            let correctCount = 0;
+
+            questions.forEach((qObj, idx) => {
+                const selected = document.querySelector(`input[name="q_${idx}"]:checked`);
+                if (selected && parseInt(selected.value) === qObj.answer) {
+                    correctCount++;
+                }
+            });
+
+            const quizScore = Math.round((correctCount / questions.length) * 100);
+
+            let wordCount = 0;
+            if (typeof currentReadingStory.content === 'string') {
+                wordCount = currentReadingStory.content.split(/\s+/).filter(Boolean).length;
+            } else {
+                wordCount = 20;
+            }
+
+            const minutes = Math.max(readingSecondsElapsed / 60, 0.1);
+            const kpmAchieved = Math.round(wordCount / minutes);
+            const targetKPM = KPM_TARGETS[currentActiveStudent.grade];
+            const isTargetAchieved = kpmAchieved >= targetKPM;
+
+            const teacherObj = teachers[currentActiveStudent.grade] || { name: 'ARDIANSYAH, S.Pd', nip: '-' };
+
+            const newLog = {
+                id: Date.now(),
+                timestamp: new Date().toLocaleString('id-ID'),
+                studentId: currentActiveStudent.id,
+                studentName: currentActiveStudent.name,
+                studentNisn: currentActiveStudent.nisn,
+                grade: currentActiveStudent.grade,
+                kpmAchieved: kpmAchieved,
+                targetKPM: targetKPM,
+                isTargetAchieved: isTargetAchieved,
+                quizScore: quizScore,
+                durationSec: readingSecondsElapsed,
+                storyTitle: currentReadingStory.title,
+                storyContent: typeof currentReadingStory.content === 'string' ? currentReadingStory.content : "Materi Suku Kata/Ejaan",
+                teacherName: teacherObj.name,
+                teacherNip: teacherObj.nip
+            };
+
+            historyLogs.unshift(newLog);
+            localStorage.setItem(STORAGE_HISTORY, JSON.stringify(historyLogs));
+
+            const targetStudent = students.find(s => s.id === currentActiveStudent.id);
+            if (targetStudent) {
+                targetStudent.isActive = false;
+                saveStudentsToStorage();
+            }
+
+            document.getElementById('quizModal').classList.add('hidden');
+            resetTimer();
+
+            showToast(`✅ Hasil ${currentActiveStudent.name} tersimpan! KPM: ${kpmAchieved}, Skor Kuis: ${quizScore}/100`, 'success');
+
+            currentActiveStudent = null;
+            document.getElementById('activeStudentBadge').classList.add('hidden');
+
+            renderHistoryTable();
+            updateStats();
+            switchTab('spinner');
+        }
+
+        /* ==================== DATA MANAGEMENT ==================== */
+        function loadSampleParanggiData() {
+            const sampleData = [
+                { id: 101, name: "Ahmad Rizky", nisn: "0123456701", grade: 1, isActive: true },
+                { id: 102, name: "Siti Nurhaliza", nisn: "0123456702", grade: 1, isActive: true },
+                { id: 103, name: "Bagas Pratama", nisn: "0123456703", grade: 1, isActive: true },
+                { id: 201, name: "Dina Amanda", nisn: "0123456704", grade: 2, isActive: true },
+                { id: 202, name: "Eko Prasetyo", nisn: "0123456705", grade: 2, isActive: true },
+                { id: 203, name: "Fani Rahmawati", nisn: "0123456706", grade: 2, isActive: true },
+                { id: 301, name: "Gilang Ramadan", nisn: "0123456707", grade: 3, isActive: true },
+                { id: 302, name: "Hani Kurnia", nisn: "0123456708", grade: 3, isActive: true },
+                { id: 303, name: "Indra Wijaya", nisn: "0123456709", grade: 3, isActive: true },
+                { id: 401, name: "Joko Susilo", nisn: "0123456710", grade: 4, isActive: true },
+                { id: 402, name: "Kiki Amelia", nisn: "0123456711", grade: 4, isActive: true },
+                { id: 403, name: "Lestari Putri", nisn: "0123456712", grade: 4, isActive: true },
+                { id: 501, name: "Muhammad Fikri", nisn: "0123456713", grade: 5, isActive: true },
+                { id: 502, name: "Nabila Syakieb", nisn: "0123456714", grade: 5, isActive: true },
+                { id: 503, name: "Oky Setiawan", nisn: "0123456715", grade: 5, isActive: true },
+                { id: 601, name: "Putri Anggraini", nisn: "0123456716", grade: 6, isActive: true },
+                { id: 602, name: "Rian Hidayat", nisn: "0123456717", grade: 6, isActive: true },
+                { id: 603, name: "Syafa Syahirah", nisn: "0123456718", grade: 6, isActive: true }
+            ];
+
+            students = sampleData;
+            saveStudentsToStorage();
+            renderStudentTable();
+            updateSpinnerList();
+            showToast('18 Contoh data siswa SD berhasil dimuat!', 'success');
+        }
+
+        function saveStudentsToStorage() {
+            localStorage.setItem(STORAGE_STUDENTS, JSON.stringify(students));
+        }
+
+        function renderStudentTable() {
+            const tbody = document.getElementById('studentTableBody');
+            const filterGrade = document.getElementById('studentTableGradeFilter').value;
+            tbody.innerHTML = '';
+
+            const filtered = students.filter(s => filterGrade === 'ALL' || s.grade.toString() === filterGrade);
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">Data siswa kosong. Klik "Muat Contoh Data SD Paranggi" untuk mengisi.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach((s, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-3.5 pl-6 text-xs font-bold text-slate-400">${idx + 1}</td>
+                    <td class="p-3.5 font-bold text-slate-800">${s.name}</td>
+                    <td class="p-3.5 text-xs text-slate-500 font-mono">${s.nisn}</td>
+                    <td class="p-3.5"><span class="bg-brand-50 text-brand-700 font-extrabold text-xs px-2.5 py-1 rounded-full border border-brand-200">Kelas ${s.grade}</span></td>
+                    <td class="p-3.5">
+                        <span class="text-xs px-2.5 py-1 rounded-full font-bold ${s.isActive !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}">
+                            ${s.isActive !== false ? 'Aktif' : 'Selesai Read'}
+                        </span>
+                    </td>
+                    <td class="p-3.5 text-right pr-6 space-x-2">
+                        <button onclick="editStudent(${s.id})" class="text-brand-600 hover:text-brand-800 font-bold text-xs"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                        <button onclick="deleteStudent(${s.id})" class="text-red-600 hover:text-red-800 font-bold text-xs"><i class="fa-solid fa-trash"></i> Hapus</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openStudentModal(id = null) {
+            document.getElementById('studentForm').reset();
+            document.getElementById('studentEditId').value = '';
+            document.getElementById('studentModalTitle').innerText = 'Tambah Data Siswa';
+
+            if (id) {
+                const student = students.find(s => s.id === id);
+                if (student) {
+                    document.getElementById('studentModalTitle').innerText = 'Edit Data Siswa';
+                    document.getElementById('studentEditId').value = student.id;
+                    document.getElementById('studentInputName').value = student.name;
+                    document.getElementById('studentInputNisn').value = student.nisn;
+                    document.getElementById('studentInputGrade').value = student.grade;
+                }
+            }
+            document.getElementById('studentModal').classList.remove('hidden');
+        }
+
+        function closeStudentModal() {
+            document.getElementById('studentModal').classList.add('hidden');
+        }
+
+        function saveStudentForm(e) {
+            e.preventDefault();
+            const editId = document.getElementById('studentEditId').value;
+            const name = document.getElementById('studentInputName').value.trim();
+            const nisn = document.getElementById('studentInputNisn').value.trim();
+            const grade = parseInt(document.getElementById('studentInputGrade').value);
+
+            if (editId) {
+                const s = students.find(item => item.id === parseInt(editId));
+                if (s) {
+                    s.name = name;
+                    s.nisn = nisn;
+                    s.grade = grade;
+                }
+            } else {
+                students.push({
+                    id: Date.now(),
+                    name: name,
+                    nisn: nisn,
+                    grade: grade,
+                    isActive: true
+                });
+            }
+
+            saveStudentsToStorage();
+            renderStudentTable();
+            updateSpinnerList();
+            closeStudentModal();
+            showToast('Data siswa berhasil disimpan!', 'success');
+        }
+
+        function editStudent(id) {
+            openStudentModal(id);
+        }
+
+        function deleteStudent(id) {
+            showConfirmModal(
+                'Hapus Data Siswa',
+                'Apakah Anda yakin ingin menghapus data siswa ini?',
+                () => {
+                    students = students.filter(s => s.id !== id);
+                    saveStudentsToStorage();
+                    renderStudentTable();
+                    updateSpinnerList();
+                    showToast('Siswa berhasil dihapus.', 'info');
+                }
+            );
+        }
+
+        function deleteAllStudents() {
+            showConfirmModal(
+                'Hapus Seluruh Siswa',
+                'Apakah Anda yakin ingin menghapus seluruh data siswa?',
+                () => {
+                    students = [];
+                    saveStudentsToStorage();
+                    renderStudentTable();
+                    updateSpinnerList();
+                    showToast('Semua data siswa berhasil dihapus.', 'info');
+                }
+            );
+        }
+
+        function handleExcelUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    if (json.length < 2) {
+                        showToast('Berkas Excel kosong atau tidak memiliki baris data!', 'warning');
+                        return;
+                    }
+
+                    let addedCount = 0;
+                    for (let i = 1; i < json.length; i++) {
+                        const row = json[i];
+                        if (row && row.length >= 2) {
+                            const name = row[0] ? String(row[0]).trim() : '';
+                            const nisn = row[1] ? String(row[1]).trim() : '';
+                            const grade = row[2] ? parseInt(row[2]) : 1;
+
+                            if (name) {
+                                students.push({
+                                    id: Date.now() + i,
+                                    name: name,
+                                    nisn: nisn || '0000000000',
+                                    grade: isNaN(grade) || grade < 1 || grade > 6 ? 1 : grade,
+                                    isActive: true
+                                });
+                                addedCount++;
+                            }
+                        }
+                    }
+
+                    saveStudentsToStorage();
+                    renderStudentTable();
+                    updateSpinnerList();
+                    showToast(`Berhasil mengimpor ${addedCount} data siswa dari Excel!`, 'success');
+                } catch (err) {
+                    showToast('Gagal membaca berkas Excel. Pastikan format sesuai!', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        /* ==================== TEACHER SETTINGS LOGIC ==================== */
+        function renderTeacherForm() {
+            const container = document.getElementById('teacherInputsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            for (let g = 1; g <= 6; g++) {
+                const t = teachers[g] || { name: 'ARDIANSYAH, S.Pd', nip: '' };
+                container.innerHTML += `
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                        <div class="flex items-center justify-between border-b pb-2 border-slate-200">
+                            <span class="font-extrabold text-xs text-brand-700 uppercase"><i class="fa-solid fa-chalkboard-user mr-1"></i> Guru Kelas ${g}</span>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Nama Guru Pembimbing</label>
+                            <input type="text" id="teacherName_${g}" value="${t.name}" required class="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">NIP Guru</label>
+                            <input type="text" id="teacherNip_${g}" value="${t.nip}" placeholder="Contoh: 19850101 201001 1 001" class="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none font-mono">
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function saveTeacherSettings(e) {
+            if (e) e.preventDefault();
+            for (let g = 1; g <= 6; g++) {
+                const nameVal = document.getElementById(`teacherName_${g}`).value.trim();
+                const nipVal = document.getElementById(`teacherNip_${g}`).value.trim();
+                teachers[g] = {
+                    name: nameVal || 'ARDIANSYAH, S.Pd',
+                    nip: nipVal || '-'
+                };
+            }
+            localStorage.setItem(STORAGE_TEACHERS, JSON.stringify(teachers));
+            showToast('Pengaturan data Guru Pembimbing Kelas 1-6 berhasil disimpan!', 'success');
+        }
+
+        /* ==================== HISTORY, STATS & PRINT ==================== */
+        function renderHistoryTable() {
+            const tbody = document.getElementById('historyTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (historyLogs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400 text-xs">Belum ada riwayat sesi membaca. Selesaikan sesi membaca untuk mencetak laporan.</td></tr>`;
+                return;
+            }
+
+            historyLogs.forEach((log) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-3.5 pl-6 text-xs text-slate-500 font-mono">${log.timestamp}</td>
+                    <td class="p-3.5 font-bold text-slate-800">${log.studentName}</td>
+                    <td class="p-3.5"><span class="bg-brand-50 text-brand-700 font-extrabold text-xs px-2.5 py-1 rounded-full border border-brand-200">Kelas ${log.grade}</span></td>
+                    <td class="p-3.5 font-extrabold text-slate-800">${log.kpmAchieved} KPM <span class="text-[10px] text-slate-400 font-normal">(Target ${log.targetKPM})</span></td>
+                    <td class="p-3.5"><span class="font-extrabold ${log.quizScore >= 70 ? 'text-emerald-600' : 'text-amber-600'}">${log.quizScore}/100</span></td>
+                    <td class="p-3.5">
+                        <span class="text-xs px-2.5 py-1 rounded-full font-bold ${log.isTargetAchieved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                            ${log.isTargetAchieved ? 'Tercapai' : 'Perlu Bimbingan'}
+                        </span>
+                    </td>
+                    <td class="p-3.5 text-right pr-6 space-x-2">
+                        <button onclick="printIndividualReport(${log.id})" title="Cetak Rapor individu" class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 shadow-sm">
+                            <i class="fa-solid fa-print"></i> Cetak Rapor
+                        </button>
+                        <button onclick="deleteHistoryItem(${log.id})" title="Hapus Riwayat" class="text-red-600 hover:text-red-800 font-bold text-xs p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateStats() {
+            const totalSessions = historyLogs.length;
+            document.getElementById('statTotalSessions').innerText = totalSessions;
+
+            if (totalSessions === 0) {
+                document.getElementById('statAvgKPM').innerText = '0 KPM';
+                document.getElementById('statTargetRate').innerText = '0%';
+                document.getElementById('statAvgQuiz').innerText = '0/100';
+                return;
+            }
+
+            const totalKpm = historyLogs.reduce((acc, curr) => acc + (curr.kpmAchieved || 0), 0);
+            const avgKpm = Math.round(totalKpm / totalSessions);
+            document.getElementById('statAvgKPM').innerText = `${avgKpm} KPM`;
+
+            const targetAchievedCount = historyLogs.filter(h => h.isTargetAchieved).length;
+            const targetRate = Math.round((targetAchievedCount / totalSessions) * 100);
+            document.getElementById('statTargetRate').innerText = `${targetRate}%`;
+
+            const totalQuiz = historyLogs.reduce((acc, curr) => acc + (curr.quizScore || 0), 0);
+            const avgQuiz = Math.round(totalQuiz / totalSessions);
+            document.getElementById('statAvgQuiz').innerText = `${avgQuiz}/100`;
+        }
+
+        function deleteHistoryItem(id) {
+            showConfirmModal(
+                'Hapus Riwayat Membaca',
+                'Apakah Anda yakin ingin menghapus data riwayat membaca ini?',
+                () => {
+                    historyLogs = historyLogs.filter(h => h.id !== id);
+                    localStorage.setItem(STORAGE_HISTORY, JSON.stringify(historyLogs));
+                    renderHistoryTable();
+                    updateStats();
+                    showToast('Riwayat membaca berhasil dihapus.', 'info');
+                }
+            );
+        }
+
+        function deleteAllHistory() {
+            showTypeConfirmModal(
+                'Hapus Seluruh Riwayat',
+                'Tindakan ini akan menghapus seluruh data riwayat membaca secara permanen.',
+                'HAPUS',
+                () => {
+                    historyLogs = [];
+                    localStorage.setItem(STORAGE_HISTORY, JSON.stringify(historyLogs));
+                    renderHistoryTable();
+                    updateStats();
+                    showToast('Seluruh riwayat membaca berhasil dihapus.', 'info');
+                }
+            );
+        }
+
+        function exportHistoryCSV() {
+            if (historyLogs.length === 0) {
+                showToast('Tidak ada data riwayat untuk diunduh!', 'warning');
+                return;
+            }
+
+            const headers = ["ID", "Tanggal", "Nama Siswa", "NISN", "Kelas", "KPM Dicapai", "Target KPM", "Status Target", "Skor Kuis", "Durasi (Detik)", "Judul Cerita", "Guru Pembimbing"];
+            const rows = historyLogs.map(l => [
+                l.id,
+                `"${l.timestamp}"`,
+                `"${l.studentName}"`,
+                `"${l.studentNisn}"`,
+                l.grade,
+                l.kpmAchieved,
+                l.targetKPM,
+                l.isTargetAchieved ? "TERCAPAI" : "PERLU BIMBINGAN",
+                l.quizScore,
+                l.durationSec,
+                `"${l.storyTitle}"`,
+                `"${l.teacherName}"`
+            ]);
+
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+                + headers.join(",") + "\n"
+                + rows.map(e => e.join(",")).join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Laporan_Membaca_SD_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('Laporan CSV berhasil diunduh!', 'success');
+        }
+
+        function printIndividualReport(logId) {
+            const log = historyLogs.find(h => h.id === logId);
+            if (!log) {
+                showToast('Data riwayat tidak ditemukan!', 'error');
+                return;
+            }
+
+            document.getElementById('printStudentName').innerText = log.studentName;
+            document.getElementById('printStudentNisn').innerText = log.studentNisn || '-';
+            document.getElementById('printStudentGrade').innerText = `Kelas ${log.grade} SD`;
+            document.getElementById('printDate').innerText = log.timestamp;
+
+            // Class rank calculation
+            const classLogs = historyLogs.filter(h => h.grade === log.grade);
+            classLogs.sort((a,b) => b.kpmAchieved - a.kpmAchieved);
+            const rank = classLogs.findIndex(h => h.id === log.id) + 1;
+            document.getElementById('printClassRank').innerText = `Peringkat ${rank} dari ${classLogs.length} Sesi Kelas ${log.grade}`;
+
+            document.getElementById('printTargetStatus').innerText = log.isTargetAchieved ? "TERCAPAI (SANGAT BAIK)" : "PERLU BIMBINGAN KHUSUS";
+            document.getElementById('printTargetStatus').className = log.isTargetAchieved ? "font-bold text-emerald-700" : "font-bold text-amber-700";
+
+            document.getElementById('printKpmValue').innerText = `${log.kpmAchieved} KPM`;
+            document.getElementById('printKpmTarget').innerText = `(Target Kelas: ${log.targetKPM} KPM)`;
+            document.getElementById('printQuizScore').innerText = `${log.quizScore} / 100`;
+            document.getElementById('printDuration').innerText = `${log.durationSec} Detik`;
+
+            document.getElementById('printStoryTitle').innerText = log.storyTitle;
+            document.getElementById('printStoryContent').innerText = log.storyContent;
+
+            document.getElementById('printSignLocation').innerText = signLocation;
+            document.getElementById('printSignDate').innerText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            document.getElementById('printSignGrade').innerText = log.grade;
+            document.getElementById('printSignTeacherName').innerText = log.teacherName || 'ARDIANSYAH, S.Pd';
+            document.getElementById('printSignTeacherNip').innerText = `NIP. ${log.teacherNip || '-'}`;
+
+            renderLogoUI();
+
+            document.getElementById('printableReportArea').classList.remove('hidden');
+            window.print();
+        }
+
+        /* ==================== ICE BREAKING VIDEO PLAYER ==================== */
+        function initIceBreakingPlaylist() {
+            renderPlaylist();
+            if (iceBreakingPlaylist.length > 0) {
+                playVideo(iceBreakingPlaylist[0].id);
+            }
+        }
+
+        function renderPlaylist() {
+            const container = document.getElementById('playlistContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (iceBreakingPlaylist.length === 0) {
+                container.innerHTML = `<div class="text-xs text-slate-400 text-center py-4">Playlist kosong. Tambahkan video baru di atas.</div>`;
+                return;
+            }
+
+            iceBreakingPlaylist.forEach((vid) => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 text-xs gap-2";
+                item.innerHTML = `
+                    <div class="flex items-center gap-2 cursor-pointer flex-1 min-w-0" onclick="playVideo(${vid.id})">
+                        <i class="fa-solid fa-circle-play text-purple-600 text-base shrink-0"></i>
+                        <span class="font-bold text-slate-700 truncate">${vid.title}</span>
+                    </div>
+                    <button onclick="deleteVideo(${vid.id})" class="text-red-500 hover:text-red-700 p-1 font-bold shrink-0" title="Hapus Video">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function playVideo(id) {
+            const vid = iceBreakingPlaylist.find(v => v.id === id);
+            if (!vid) return;
+
+            document.getElementById('currentVideoTitle').innerText = vid.title;
+            const container = document.getElementById('videoPlayerContainer');
+
+            if (vid.isLocal) {
+                container.innerHTML = `
+                    <video controls autoplay class="w-full h-full object-contain">
+                        <source src="${vid.url}" type="video/mp4">
+                        Browser Anda tidak mendukung pemutar video.
+                    </video>
+                `;
+            } else {
+                let embedUrl = vid.url;
+                if (embedUrl.includes('youtube.com/watch?v=')) {
+                    const videoId = embedUrl.split('v=')[1].split('&')[0];
+                    embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+                } else if (embedUrl.includes('youtu.be/')) {
+                    const videoId = embedUrl.split('youtu.be/')[1].split('?')[0];
+                    embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+                }
+
+                container.innerHTML = `
+                    <iframe class="w-full h-full" src="${embedUrl}" title="${vid.title}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                `;
+            }
+        }
+
+        function addVideoFromUrl() {
+            const title = document.getElementById('videoTitleInput').value.trim();
+            const url = document.getElementById('videoUrlInput').value.trim();
+
+            if (!title || !url) {
+                showToast('Judul dan URL video harus diisi!', 'warning');
+                return;
+            }
+
+            const newVid = { id: Date.now(), title, url, isLocal: false };
+            iceBreakingPlaylist.push(newVid);
+            localStorage.setItem(STORAGE_ICEBREAKING, JSON.stringify(iceBreakingPlaylist));
+
+            document.getElementById('videoTitleInput').value = '';
+            document.getElementById('videoUrlInput').value = '';
+
+            renderPlaylist();
+            playVideo(newVid.id);
+            showToast('Video berhasil ditambahkan ke playlist!', 'success');
+        }
+
+        function handleLocalVideoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const url = URL.createObjectURL(file);
+            const title = file.name.replace(/\.[^/.]+$/, "");
+
+            const newVid = { id: Date.now(), title, url, isLocal: true };
+            iceBreakingPlaylist.push(newVid);
+            localStorage.setItem(STORAGE_ICEBREAKING, JSON.stringify(iceBreakingPlaylist));
+
+            renderPlaylist();
+            playVideo(newVid.id);
+            showToast('Video lokal berhasil dimuat!', 'success');
+        }
+
+        function deleteVideo(id) {
+            iceBreakingPlaylist = iceBreakingPlaylist.filter(v => v.id !== id);
+            localStorage.setItem(STORAGE_ICEBREAKING, JSON.stringify(iceBreakingPlaylist));
+            renderPlaylist();
+            showToast('Video dihapus dari playlist.', 'info');
+        }
+    </script>
+</body>
+</html>
